@@ -1,4 +1,5 @@
 from data.nasa_api import LOCATIONS, get_weather
+from data.preprocess import clean_rows
 from datetime import date
 
 START_DATE = "20000101"
