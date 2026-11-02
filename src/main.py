@@ -1,32 +1,39 @@
-from data.nasa_api import LOCATIONS, get_weather
+from data.nasa_api import LOCATIONS, get_location_weather
 from data.preprocess import clean_rows
-from datetime import date
 
 START_DATE = "20000101"
-END_DATE = date.today().strftime("%Y%m%d")
+END_DATE = "20241231"
+
 
 def main():
     weather_by_location = {}
 
+    print("\nNASA POWER Weather Data Ingestion (CMSC 170 - Group BAWWL)")
+    print("=" * 65)
+
+    # Ingest data for each location
     for location, (latitude, longitude) in LOCATIONS.items():
-        print(f"Getting weather data for {location}...")
+        print(f"\nProcessing {location} ({latitude}, {longitude})...")
+        try:
+            weather_by_location[location] = get_location_weather(
+                location_name=location,
+                latitude=latitude,
+                longitude=longitude,
+                start_date=START_DATE,
+                end_date=END_DATE,
+            )
+        except Exception as error:
+            print(f"Failed to ingest {location}: {error}")
 
-        weather_by_location[location] = get_weather(
-            latitude,
-            longitude,
-            START_DATE,
-            END_DATE,
-        )
-
+    # Print summary of ingested data
+    print("\n" + "=" * 65)
+    print("Ingestion Summary")
+    print("=" * 65)
     for location, rows in weather_by_location.items():
-        print(f"{location}: {len(rows)} daily records")
-        # for row in rows:
-        #     print(row)
+        cleaned = clean_rows(rows[:3])
+        sample_date = cleaned[0].get("date", "N/A") if cleaned else "N/A"
+        print(f"- {location:16s}: {len(rows):5d} daily records (starts {sample_date})")
 
-        # Next steps:
-        # 1. Clean the rows and handle missing values
-        # 2. Build weather windows and next-day rain labels
-        # 3. Pass the prepared data to models
 
 
 if __name__ == "__main__":
