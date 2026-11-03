@@ -94,3 +94,19 @@ class GaussianNaiveBayes:
             scores[:, c] = log_prior + per_feature.sum(axis=1)
 
         return scores
+
+    def predict_proba(self, X):
+        # Return a list with P(rain) for each example (for metrics.py)
+        scores = self._log_scores(X)
+
+        # subtract the larger score in each row so exp() cannot underflow to 0
+        scores = scores - scores.max(axis=1, keepdims=True)
+        exp_scores = np.exp(scores)
+
+        # Rain's share of the total = probability of rain
+        p_rain = exp_scores[:, 1] / exp_scores.sum(axis=1)
+        return p_rain.tolist()                    # plain Python list
+
+    def predict(self, X, threshold=0.5):
+        # Return a list of 0/1: 1 (rain) if P(rain) >= threshold, else 0 (dry)
+        return [1 if p >= threshold else 0 for p in self.predict_proba(X)]
