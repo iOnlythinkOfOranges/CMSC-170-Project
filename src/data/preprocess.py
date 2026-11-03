@@ -1,12 +1,25 @@
-import os
-import sys
-
+import math
 from data.nasa_api import PARAMETERS
-
 
 MISSING_VALUE = -999.0
 
+# 11 features per day after wind direction decomposition
+DAILY_FEATURE_NAMES = (
+    "T2M",
+    "T2M_MAX",
+    "T2M_MIN",
+    "PRECTOTCORR",
+    "RH2M",
+    "PS",
+    "WS10M",
+    "WD10M_sin",
+    "WD10M_cos",
+    "T2MDEW",
+    "ALLSKY_SFC_SW_DWN",
+)
 
+
+# Parse raw string rows into numeric values and map -999.0 to None
 def clean_rows(rows):
     cleaned_rows = []
 
@@ -31,7 +44,6 @@ def clean_rows(rows):
                 continue
 
             value = float(val_raw)
-
             if value == MISSING_VALUE:
                 cleaned_row[parameter] = None
             else:
@@ -40,3 +52,141 @@ def clean_rows(rows):
         cleaned_rows.append(cleaned_row)
 
     return cleaned_rows
+
+
+# Forward-fill and backward-fill missing None values
+def impute_missing(rows):
+    if not rows:
+        return []
+
+    imputed = [dict(r) for r in rows]
+
+    for param in PARAMETERS:
+        # Forward fill
+        last_val = None
+        for r in imputed:
+            if r.get(param) is not None:
+                last_val = r[param]
+            elif last_val is not None:
+                r[param] = last_val
+
+        # Backward fill if leading entries are None
+        first_val = None
+        for r in imputed:
+            if r.get(param) is not None:
+                first_val = r[param]
+                break
+
+        if first_val is not None:
+            for r in imputed:
+                if r.get(param) is None:
+                    r[param] = first_val
+                else:
+                    break
+
+    return imputed
+
+
+# Convert single day row into numerical feature vector with cyclical wind encoding
+def extract_daily_features(row):
+    wd_deg = row["WD10M"]
+    wd_rad = math.radians(wd_deg)
+
+    return [
+        row["T2M"],
+        row["T2M_MAX"],
+        row["T2M_MIN"],
+        row["PRECTOTCORR"],
+        row["RH2M"],
+        row["PS"],
+        row["WS10M"],
+        math.sin(wd_rad),
+        math.cos(wd_rad),
+        row["T2MDEW"],
+        row["ALLSKY_SFC_SW_DWN"],
+    ]
+
+
+# Build sliding lookback window samples (X) and next-day rain target (y)
+def create_sliding_windows(rows, window_size=5, rain_threshold=1.0):
+    daily_vectors = [extract_daily_features(r) for r in rows]
+
+    X = []
+    y = []
+
+    # Window covers past days; target is next day (i + 1)
+    for i in range(window_size - 1, len(rows) - 1):
+        sample = []
+        for w in range(i - window_size + 1, i + 1):
+            sample.extend(daily_vectors[w])
+        X.append(sample)
+
+        # 1 if tomorrow precipitation > 1.0 mm, else 0
+        tomorrow_rain = 1 if rows[i + 1]["PRECTOTCORR"] > rain_threshold else 0
+        y.append(tomorrow_rain)
+
+    return X, y
+
+
+# Chronological split into train, val, and test sets
+def train_val_test_split(X, y, train_ratio=0.70, val_ratio=0.15):
+    n = len(X)
+    train_end = int(n * train_ratio)
+    val_end = int(n * (train_ratio + val_ratio))
+
+    X_train, y_train = X[:train_end], y[:train_end]
+    X_val, y_val = X[train_end:val_end], y[train_end:val_end]
+    X_test, y_test = X[val_end:], y[val_end:]
+
+    return (X_train, y_train), (X_val, y_val), (X_test, y_test)
+
+
+# Z-score standardization: fit mean/std strictly on training set
+def standardize_features(X_train, X_val, X_test):
+    n_train = len(X_train)
+    num_features = len(X_train[0])
+
+    # Compute mean for each feature on train set
+    means = [
+        sum(X_train[i][j] for i in range(n_train)) / n_train
+        for j in range(num_features)
+    ]
+
+    # Compute std for each feature on train set
+    stds = []
+    for j in range(num_features):
+        variance = sum((X_train[i][j] - means[j]) ** 2 for i in range(n_train)) / n_train
+        std = math.sqrt(variance)
+        stds.append(std if std > 1e-8 else 1.0)
+
+    # Scale dataset using train statistics
+    def scale(dataset):
+        return [
+            [(row[j] - means[j]) / stds[j] for j in range(num_features)]
+            for row in dataset
+        ]
+
+    return scale(X_train), scale(X_val), scale(X_test), (means, stds)
+
+
+# Complete end-to-end preprocessing pipeline for one location
+def preprocess_location(rows, window_size=5, rain_threshold=1.0):
+    cleaned = clean_rows(rows)
+    imputed = impute_missing(cleaned)
+    X, y = create_sliding_windows(imputed, window_size=window_size, rain_threshold=rain_threshold)
+
+    (X_train, y_train), (X_val, y_val), (X_test, y_test) = train_val_test_split(X, y)
+    X_train_s, X_val_s, X_test_s, (means, stds) = standardize_features(X_train, X_val, X_test)
+
+    return {
+        "X_train": X_train_s,
+        "y_train": y_train,
+        "X_val": X_val_s,
+        "y_val": y_val,
+        "X_test": X_test_s,
+        "y_test": y_test,
+        "means": means,
+        "stds": stds,
+        "window_size": window_size,
+        "feature_count": len(X_train_s[0]),
+    }
