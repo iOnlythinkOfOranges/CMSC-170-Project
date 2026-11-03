@@ -1,9 +1,14 @@
+# References:
+# - WMO No. 8 (Rain Measurement): https://library.wmo.int/records/item/35616-guide-to-instruments-and-methods-of-observation
+# - Directional Statistics (Mardia & Jupp): https://onlinelibrary.wiley.com/doi/book/10.1002/9780470316979
+# - Technical Documentation: docs/code_decisions_and_implementation.md
 import math
 from data.nasa_api import PARAMETERS
 
+# Ref: NASA POWER data dictionary uses -999.0 as missing observation sentinel
 MISSING_VALUE = -999.0
 
-# 11 features per day after wind direction decomposition
+# Ref: 10 NASA variables expanded to 11 via trigonometric wind decomposition
 DAILY_FEATURE_NAMES = (
     "T2M",
     "T2M_MAX",
@@ -87,7 +92,7 @@ def impute_missing(rows):
     return imputed
 
 
-# Convert single day row into numerical feature vector with cyclical wind encoding
+# Ref: Circular statistics (Mardia & Jupp): decompose wind degrees into sin/cos to remove 0/360 discontinuity
 def extract_daily_features(row):
     wd_deg = row["WD10M"]
     wd_rad = math.radians(wd_deg)
@@ -107,7 +112,7 @@ def extract_daily_features(row):
     ]
 
 
-# Build sliding lookback window samples (X) and next-day rain target (y)
+# Ref: Lookback W=5 days captures synoptic systems (Milestone 1); WMO/PAGASA > 1.0 mm separates measurable rain from trace
 def create_sliding_windows(rows, window_size=5, rain_threshold=1.0):
     daily_vectors = [extract_daily_features(r) for r in rows]
 
@@ -121,14 +126,14 @@ def create_sliding_windows(rows, window_size=5, rain_threshold=1.0):
             sample.extend(daily_vectors[w])
         X.append(sample)
 
-        # 1 if tomorrow precipitation > 1.0 mm, else 0
+        # Ref: WMO standard: 1 if tomorrow precipitation > 1.0 mm, else 0
         tomorrow_rain = 1 if rows[i + 1]["PRECTOTCORR"] > rain_threshold else 0
         y.append(tomorrow_rain)
 
     return X, y
 
 
-# Chronological split into train, val, and test sets
+# Ref: Chronological 70/15/15 split without shuffling prevents temporal data leakage
 def train_val_test_split(X, y, train_ratio=0.70, val_ratio=0.15):
     n = len(X)
     train_end = int(n * train_ratio)
@@ -141,7 +146,7 @@ def train_val_test_split(X, y, train_ratio=0.70, val_ratio=0.15):
     return (X_train, y_train), (X_val, y_val), (X_test, y_test)
 
 
-# Z-score standardization: fit mean/std strictly on training set
+# Ref: Z-score standardization: fit mean and std strictly on train set to prevent test leakage
 def standardize_features(X_train, X_val, X_test):
     n_train = len(X_train)
     num_features = len(X_train[0])

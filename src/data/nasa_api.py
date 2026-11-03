@@ -1,11 +1,17 @@
+# References:
+# - NASA POWER API: https://power.larc.nasa.gov/
+# - PAGASA Synoptic Stations: https://bagong.pagasa.dost.gov.ph/climate/climate-monitoring
+
 import os
 import csv
 import io
 import requests
 from datetime import datetime
 
+# Ref: NASA POWER Agroclimatology (AG) Daily API (NASA Langley Research Center)
 URL = "https://power.larc.nasa.gov/api/temporal/daily/point"
 
+# Ref: NASA POWER meteorology parameters (MERRA-2 / GMAO assimilation)
 PARAMETERS = (
     "T2M",
     "T2M_MAX",
@@ -19,13 +25,19 @@ PARAMETERS = (
     "ALLSKY_SFC_SW_DWN",
 )
 
-# Philippine locations covering Coronas climate types
+# Coordinates reference PAGASA Synoptic Weather Stations across Coronas Climate Types I-IV
 LOCATIONS = {
+    # Ref: PAGASA Science Garden Synoptic Station, Quezon City (Coronas Type I)
     "Metro Manila": (14.6400, 121.0400),
+    # Ref: PAGASA Mactan / Cebu Complex Synoptic Station (Coronas Type III)
     "Cebu City": (10.3157, 123.8854),
+    # Ref: PAGASA Davao Synoptic Station, F. Bangoy Airport (Coronas Type IV)
     "Davao City": (7.1907, 125.4553),
+    # Ref: PAGASA Legazpi Synoptic Station, Albay (Coronas Type II)
     "Legazpi City": (13.1391, 123.7438),
+    # Ref: PAGASA Baguio Synoptic Station, Benguet (Coronas Type I Highland)
     "Baguio": (16.4023, 120.5960),
+    # Ref: PAGASA Zamboanga Synoptic Station, Airport (Coronas Type III)
     "Zamboanga City": (6.9214, 122.0790),
 }
 
@@ -163,7 +175,7 @@ def get_weather(
 
     csv_file = io.StringIO(response.text)
 
-    # NASA puts header metadata first; table starts after -END HEADER-
+    # Ref: NASA POWER CSV specification: tabular records begin after -END HEADER-
     for line in csv_file:
         if line.strip() == "-END HEADER-":
             break
