@@ -2,6 +2,7 @@ from data.nasa_api import LOCATIONS, get_location_weather
 from data.preprocess import preprocess_location
 from models.gaussian_naive_bayes import GaussianNaiveBayes
 from metrics import evaluate_predictions, find_best_threshold, roc_auc_score
+from models.knn import KNN
 
 START_DATE = "20000101"
 END_DATE = "20241231"
@@ -39,6 +40,9 @@ def run_gaussian_naive_bayes(preprocessed_data):
             print(f"[Warning] Gaussian Naive Bayes failed for {location}: {error}")
 
 
+def run_knn(data):
+    KNN(data, 15, 2)
+
 def main():
     print("=" * 65)
     print("CMSC 170 - Group BAWWL: Weather Pipeline")
@@ -75,7 +79,7 @@ def main():
 
     # Model results
     run_gaussian_naive_bayes(preprocessed_data)
-
+    run_knn(preprocessed_data)
     # Next steps:
     # 1. KNN and Logistic Regression results (same format as above)
     # 2. Compare all three on validation, then evaluate once on the test set
