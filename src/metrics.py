@@ -56,7 +56,7 @@ def evaluate_predictions(y_true, y_pred):
 
 
 # Ref: Empirical threshold calibration on validation set to maximize F1 under class imbalance
-def find_best_threshold(y_true, y_scores, start=0.10, end=0.90, step=0.05):
+def find_best_threshold(y_true, y_scores, start=0.02, end=0.98, step=0.02):
     best_threshold = 0.50
     best_f1 = -1.0
 
