@@ -72,3 +72,25 @@ class GaussianNaiveBayes:
         self.vars_ = self.vars_ + self.var_smoothing * largest_var
 
         return self                       # write GaussianNaiveBayes().fit(X, y)
+
+    def _log_scores(self, X):
+        # score each example for each class (higher score -> better fit)
+        X = np.asarray(X, dtype=float)
+        scores = np.zeros((X.shape[0], 2))        # one row per example, columns = [Dry, Rain]
+
+        for c in (0, 1):
+            # start with how common the class is (log of the prior)
+            log_prior = np.log(self.priors_[c])
+
+            # bell-curve formula in log form, for ALL features at once:
+            #   close to the class mean -> small penalty (score stays high)
+            #   far from the class mean -> big penalty (score drops)
+            per_feature = (
+                -0.5 * np.log(2 * np.pi * self.vars_[c])
+                - ((X - self.means_[c]) ** 2) / (2 * self.vars_[c])
+            )
+
+            # "naive" step: treat features as independent and add them up (sum across columns)
+            scores[:, c] = log_prior + per_feature.sum(axis=1)
+
+        return scores
