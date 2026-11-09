@@ -118,6 +118,7 @@ def create_sliding_windows(rows, window_size=5, rain_threshold=1.0):
 
     X = []
     y = []
+    target_dates = []
 
     # Window covers past days; target is next day (i + 1)
     for i in range(window_size - 1, len(rows) - 1):
@@ -127,23 +128,25 @@ def create_sliding_windows(rows, window_size=5, rain_threshold=1.0):
         X.append(sample)
 
         # Ref: WMO standard: 1 if tomorrow precipitation > 1.0 mm, else 0
-        tomorrow_rain = 1 if rows[i + 1]["PRECTOTCORR"] > rain_threshold else 0
+        target_row = rows[i + 1]
+        tomorrow_rain = 1 if target_row["PRECTOTCORR"] > rain_threshold else 0
         y.append(tomorrow_rain)
+        target_dates.append(target_row.get("date"))
 
-    return X, y
+    return X, y, target_dates
 
 
 # Ref: Chronological 70/15/15 split without shuffling prevents temporal data leakage
-def train_val_test_split(X, y, train_ratio=0.70, val_ratio=0.15):
+def train_val_test_split(X, y, target_dates, train_ratio=0.70, val_ratio=0.15):
     n = len(X)
     train_end = int(n * train_ratio)
     val_end = int(n * (train_ratio + val_ratio))
 
-    X_train, y_train = X[:train_end], y[:train_end]
-    X_val, y_val = X[train_end:val_end], y[train_end:val_end]
-    X_test, y_test = X[val_end:], y[val_end:]
+    train = X[:train_end], y[:train_end], target_dates[:train_end]
+    val = X[train_end:val_end], y[train_end:val_end], target_dates[train_end:val_end]
+    test = X[val_end:], y[val_end:], target_dates[val_end:]
 
-    return (X_train, y_train), (X_val, y_val), (X_test, y_test)
+    return train, val, test
 
 
 # Ref: Z-score standardization: fit mean and std strictly on train set to prevent test leakage
@@ -178,18 +181,26 @@ def standardize_features(X_train, X_val, X_test):
 def preprocess_location(rows, window_size=5, rain_threshold=1.0):
     cleaned = clean_rows(rows)
     imputed = impute_missing(cleaned)
-    X, y = create_sliding_windows(imputed, window_size=window_size, rain_threshold=rain_threshold)
+    X, y, target_dates = create_sliding_windows(
+        imputed, window_size=window_size, rain_threshold=rain_threshold
+    )
 
-    (X_train, y_train), (X_val, y_val), (X_test, y_test) = train_val_test_split(X, y)
+    train, val, test = train_val_test_split(X, y, target_dates)
+    X_train, y_train, dates_train = train
+    X_val, y_val, dates_val = val
+    X_test, y_test, dates_test = test
     X_train_s, X_val_s, X_test_s, (means, stds) = standardize_features(X_train, X_val, X_test)
 
     return {
         "X_train": X_train_s,
         "y_train": y_train,
+        "dates_train": dates_train,
         "X_val": X_val_s,
         "y_val": y_val,
+        "dates_val": dates_val,
         "X_test": X_test_s,
         "y_test": y_test,
+        "dates_test": dates_test,
         "means": means,
         "stds": stds,
         "window_size": window_size,
