@@ -1,98 +1,50 @@
+import numpy as np
+
+
+def predict_knn(X_train, y_train, X_eval, k_value, p_value):
+    """Return one rain score and one voted label per evaluation row."""
+    train_size = min(len(X_train), len(y_train))
+    if train_size == 0 or k_value <= 0:
+        rain_scores = [0.0 for _ in X_eval]
+        return rain_scores, [0] * len(rain_scores)
+
+    train_features = np.asarray(X_train[:train_size], dtype=float)
+    train_labels = np.asarray(y_train[:train_size])
+    rain_scores = []
+    predictions = []
+
+    for values in X_eval:
+        differences = np.abs(train_features - values)
+        distances = np.sum(differences ** p_value, axis=1) ** (1 / p_value)
+
+        # Order by distance first and by label when distances tie.
+        neighbors = np.lexsort((train_labels, distances))[:k_value]
+
+        label_count = {}
+        for index in neighbors:
+            label = y_train[index]
+            label_count[label] = label_count.get(label, 0) + 1
+
+        rain_score = label_count.get(1, 0) / len(neighbors)
+        rain_scores.append(rain_score)
+
+        predicted_label = 0
+        highest_count = 0
+        for label, count in label_count.items():
+            if count > highest_count:
+                highest_count = count
+                predicted_label = label
+        predictions.append(predicted_label)
+
+    return rain_scores, predictions
+
+
 def KNN(preprocessed_data, k_value, p_value):
-    print("K-nearest neighbour output")
-    print("k-value: ", k_value, "\t", "p-value: ", p_value)
-
-    counts = {}
+    """Return test-set rain scores grouped by location."""
     rain_scores = {}
-
-    # Process each location
     for location, data in preprocessed_data.items():
-
-        X_train = data["X_train"]
-        y_train = data["y_train"]
-        X_test = data["X_test"]
-        y_test = data["y_test"]
-
-        print(location, "train:", len(X_train), "-> test:", len(X_test))
-
-        counts[location] = [0, 0, 0, 0] #TP TN FP FN
-        rain_scores[location] = []
-
-        # KNN algorithm
-        for values, actual in zip(X_test, y_test):
-            neighbors = []
-
-            for train_values, label in zip(X_train, y_train):
-
-                # Minkowski distance
-                distance = 0
-                for i in range(len(values)):
-                    distance += abs(train_values[i] - values[i]) ** p_value
-
-                distance = distance ** (1 / p_value)
-
-                neighbors.append([distance, label])
-
-                # Sort from nearest to farthest
-                neighbors.sort()
-                if len(neighbors) > k_value:
-                    neighbors.pop()
-
-            #Get the highest
-            label_count = {}
-
-            for neighbor in neighbors:
-                if neighbor[1] not in label_count:
-                    label_count[neighbor[1]] = 1
-                else:
-                    label_count[neighbor[1]] += 1
-
-            rain_score = label_count.get(1, 0) / len(neighbors) if neighbors else 0.0
-            rain_scores[location].append(rain_score)
-
-            predicted_label = 0
-            highest_count = 0
-
-            for label, count in label_count.items():
-                if count > highest_count:
-                    highest_count = count
-                    predicted_label = label
-
-            # Confusion matrix
-            if predicted_label == 1 and actual == 1:
-                counts[location][0] += 1  # TP
-            elif predicted_label == 0 and actual == 0:
-                counts[location][1] += 1  # TN
-            elif predicted_label == 1 and actual == 0:
-                counts[location][2] += 1  # FP
-            else:
-                counts[location][3] += 1  # FN
-
-    # Metrics (per location, then overall)
-    counts["OVERALL"] = [
-        sum(c[i] for c in counts.values())
-        for i in range(4)
-    ]
-
-    for name, (tp, tn, fp, fn) in counts.items():
-
-        total = tp + tn + fp + fn
-
-        #Calculate the metrics
-        accuracy = (tp + tn) / total if total else 0
-        precision = tp / (tp + fp) if (tp + fp) else 0
-        recall = tp / (tp + fn) if (tp + fn) else 0
-        f1 = (
-            2 * precision * recall / (precision + recall)
-            if (precision + recall) else 0
+        scores, _ = predict_knn(
+            data["X_train"], data["y_train"], data["X_test"], k_value, p_value
         )
-
-
-        print("\n" + name)
-        print("  Confusion matrix [[TN FP] [FN TP]]:", [[tn, fp], [fn, tp]])
-        print("  Accuracy :", round(accuracy, 4))
-        print("  Precision:", round(precision, 4))
-        print("  Recall   :", round(recall, 4))
-        print("  F1-score :", round(f1, 4))
-
+        rain_scores[location] = scores
     return rain_scores

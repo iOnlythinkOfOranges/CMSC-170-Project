@@ -2,7 +2,7 @@ from data.nasa_api import LOCATIONS, get_location_weather
 from data.preprocess import preprocess_location
 from models.gaussian_naive_bayes import GaussianNaiveBayes
 from metrics import evaluate_predictions, find_best_threshold, roc_auc_score
-from models.knn import KNN
+from models.knn import predict_knn
 
 START_DATE = "20000101"
 END_DATE = "20241231"
@@ -67,7 +67,33 @@ def run_gaussian_naive_bayes(preprocessed_data):
         print(f"  {location:16s} {r['tp']:5d} {r['fp']:5d} {r['tn']:5d} {r['fn']:5d}")
 
 def run_knn(data):
-    KNN(data, 15, 2)
+    k_value, p_value = 15, 2
+    print("K-nearest neighbour output")
+    print("k-value: ", k_value, "\t", "p-value: ", p_value)
+
+    results = {}
+    all_labels = []
+    all_predictions = []
+    for location, city_data in data.items():
+        X_train, y_train = city_data["X_train"], city_data["y_train"]
+        X_test, y_test = city_data["X_test"], city_data["y_test"]
+        print(location, "train:", len(X_train), "-> test:", len(X_test))
+        _, predictions = predict_knn(X_train, y_train, X_test, k_value, p_value)
+        results[location] = evaluate_predictions(y_test, predictions)
+        all_labels.extend(y_test)
+        all_predictions.extend(predictions)
+
+    results["OVERALL"] = evaluate_predictions(all_labels, all_predictions)
+    for location, result in results.items():
+        print("\n" + location)
+        print(
+            "  Confusion matrix [[TN FP] [FN TP]]:",
+            [[result["tn"], result["fp"]], [result["fn"], result["tp"]]],
+        )
+        print("  Accuracy :", round(result["accuracy"], 4))
+        print("  Precision:", round(result["precision"], 4))
+        print("  Recall   :", round(result["recall"], 4))
+        print("  F1-score :", round(result["f1"], 4))
 
 def main():
     print("=" * 65)
