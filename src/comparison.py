@@ -8,8 +8,7 @@ from metrics import evaluate_predictions, find_best_threshold, roc_auc_score
 from models.knn import predict_knn
 
 def run_gaussian_naive_bayes(preprocessed_data):
-    """Train on TRAIN, tune the threshold on VALIDATION, print initial results.
-    The test set is NOT used here (it is saved for the final evaluation)."""
+    """Return validation and test rain scores by location and print validation metrics."""
     print("\n" + "=" * 78)
     print("Gaussian Naive Bayes: initial results (VALIDATION set)")
     print("=" * 78)
@@ -22,6 +21,18 @@ def run_gaussian_naive_bayes(preprocessed_data):
         except ValueError as error:
             print(f"[Warning] Gaussian Naive Bayes failed for {location}: {error}")
 
+    if not models:
+        return {}
+
+    scores_by_location = {}
+    for location, model in models.items():
+        data = preprocessed_data[location]
+        X_val, X_test = data["X_val"], data["X_test"]
+        scores_by_location[location] = {
+            "val_scores": model.predict_proba(X_val) if len(X_val) else [],
+            "test_scores": model.predict_proba(X_test) if len(X_test) else [],
+        }
+
     # [1] Raw output: what fit() learned
     print("\n[1] Learned priors (index 0 = Dry, 1 = Rain)")
     for location, model in models.items():
@@ -30,7 +41,7 @@ def run_gaussian_naive_bayes(preprocessed_data):
     # [2] Raw output: first 10 validation days of the first location
     first = next(iter(models))
     data = preprocessed_data[first]
-    probs = models[first].predict_proba(data["X_val"][:10])
+    probs = scores_by_location[first]["val_scores"][:10]
     print(f"\n[2] Sample predictions, {first} (first 10 validation days)")
     print(f"  {'Day':>3s} {'P(rain)':>8s} {'Pred@0.5':>9s} {'Actual':>7s}")
     for i, p in enumerate(probs):
@@ -42,13 +53,12 @@ def run_gaussian_naive_bayes(preprocessed_data):
           f"{'AUC':>6s} | {'AlwaysRain F1':>13s} {'AlwaysRain Acc':>14s}")
     results = []
 
-    for location, model in models.items():
-        data = preprocessed_data[location]
-        y_val = data["y_val"]
-        val_scores = model.predict_proba(data["X_val"])
+    for location, scores in scores_by_location.items():
+        y_val = preprocessed_data[location]["y_val"]
+        val_scores = scores["val_scores"]
         best_threshold, _ = find_best_threshold(y_val, val_scores)
 
-        val_pred = model.predict(data["X_val"], threshold=best_threshold)
+        val_pred = [1 if score >= best_threshold else 0 for score in val_scores]
         r = evaluate_predictions(y_val, val_pred)
         auc = roc_auc_score(y_val, val_scores)
 
@@ -66,22 +76,29 @@ def run_gaussian_naive_bayes(preprocessed_data):
     for location, r in results:
         print(f"  {location:16s} {r['tp']:5d} {r['fp']:5d} {r['tn']:5d} {r['fn']:5d}")
 
-    return results
+    return scores_by_location
 
 
 def run_knn(data):
+    """Return validation and test rain scores by location and print test metrics"""
     k_value, p_value = 15, 2
     print("K-nearest neighbour output")
     print("k-value: ", k_value, "\t", "p-value: ", p_value)
 
     results = {}
+    scores_by_location = {}
     all_labels = []
     all_predictions = []
     for location, city_data in data.items():
         X_train, y_train = city_data["X_train"], city_data["y_train"]
         X_test, y_test = city_data["X_test"], city_data["y_test"]
         print(location, "train:", len(X_train), "-> test:", len(X_test))
-        _, predictions = predict_knn(X_train, y_train, X_test, k_value, p_value)
+        val_scores, _ = predict_knn(X_train, y_train, city_data["X_val"], k_value, p_value)
+        test_scores, predictions = predict_knn(X_train, y_train, X_test, k_value, p_value)
+        scores_by_location[location] = {
+            "val_scores": val_scores,
+            "test_scores": test_scores,
+        }
         results[location] = evaluate_predictions(y_test, predictions)
         all_labels.extend(y_test)
         all_predictions.extend(predictions)
@@ -98,7 +115,7 @@ def run_knn(data):
         print("  Recall   :", round(result["recall"], 4))
         print("  F1-score :", round(result["f1"], 4))
 
-    return results
+    return scores_by_location
 
 def run_compare(preprocessed_data):
     gnb_result = run_gaussian_naive_bayes(preprocessed_data)
