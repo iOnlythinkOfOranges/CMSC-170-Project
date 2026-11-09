@@ -1,6 +1,6 @@
 from data.nasa_api import LOCATIONS, get_location_weather
 from data.preprocess import preprocess_location
-from comparison import run_gaussian_naive_bayes, run_knn, run_compare
+from comparison import run_compare
 START_DATE = "20000101"
 END_DATE = "20241231"
 
