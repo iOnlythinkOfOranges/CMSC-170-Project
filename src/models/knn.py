@@ -3,6 +3,7 @@ def KNN(preprocessed_data, k_value, p_value):
     print("k-value: ", k_value, "\t", "p-value: ", p_value)
 
     counts = {}
+    rain_scores = {}
 
     # Process each location
     for location, data in preprocessed_data.items():
@@ -15,6 +16,7 @@ def KNN(preprocessed_data, k_value, p_value):
         print(location, "train:", len(X_train), "-> test:", len(X_test))
 
         counts[location] = [0, 0, 0, 0] #TP TN FP FN
+        rain_scores[location] = []
 
         # KNN algorithm
         for values, actual in zip(X_test, y_test):
@@ -44,6 +46,9 @@ def KNN(preprocessed_data, k_value, p_value):
                     label_count[neighbor[1]] = 1
                 else:
                     label_count[neighbor[1]] += 1
+
+            rain_score = label_count.get(1, 0) / len(neighbors) if neighbors else 0.0
+            rain_scores[location].append(rain_score)
 
             predicted_label = 0
             highest_count = 0
@@ -90,3 +95,4 @@ def KNN(preprocessed_data, k_value, p_value):
         print("  Recall   :", round(recall, 4))
         print("  F1-score :", round(f1, 4))
 
+    return rain_scores
