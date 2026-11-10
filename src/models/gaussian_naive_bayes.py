@@ -1,7 +1,6 @@
 # Gaussian Naive Bayes Implementation
 
 # GOAL: predict whether it will rain tomorrow (1) or stay dry (0)
-# Full pseudocode: docs/pseudocode_gnb.md
 
 # IMPLEMENTATION:
 #   1. FIT:     learn from the training days (a) how common rain and dry are (the "priors"), 

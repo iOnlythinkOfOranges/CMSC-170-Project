@@ -123,13 +123,13 @@ def run_logistic_regression(preprocessed_data):
     print("Logistic Regression")
     print("=" * 78)
 
-        # Train one model per location (TRAIN data only)
+    # Train one model per location (TRAIN data only)
     models = {}
     for location, data in preprocessed_data.items():
         try:
             models[location] = LogisticRegression().fit(data["X_train"], data["y_train"])
         except ValueError as error:
-            print(f"[Warning] Gaussian Naive Bayes failed for {location}: {error}")
+            print(f"[Warning] Logistic Regression failed for {location}: {error}")
 
     if not models:
         return {}
@@ -147,13 +147,13 @@ def run_logistic_regression(preprocessed_data):
     first = next(iter(models))
     data = preprocessed_data[first]
     probs = scores_by_location[first]["val_scores"][:10]
-    print(f"\n[2] Sample predictions, {first} (first 10 validation days)")
+    print(f"\n[1] Sample predictions, {first} (first 10 validation days)")
     print(f"  {'Day':>3s} {'P(rain)':>8s} {'Pred@0.5':>9s} {'Actual':>7s}")
     for i, p in enumerate(probs):
         print(f"  {i:3d} {p:8.3f} {int(p >= 0.5):9d} {data['y_val'][i]:7d}")
 
     # [2] Metrics vs. the always-rain baseline
-    print("\n[3] Metrics (threshold tuned on validation F1)")
+    print("\n[2] Metrics (threshold tuned on validation F1)")
     print(f"  {'Location':16s} {'Thr':>5s} {'F1':>6s} {'Prec':>6s} {'Rec':>6s} {'Acc':>6s} "
           f"{'AUC':>6s} | {'AlwaysRain F1':>13s} {'AlwaysRain Acc':>14s}")
     results = []
@@ -176,7 +176,7 @@ def run_logistic_regression(preprocessed_data):
         results.append((location, r))
 
     # [3] Confusion matrix counts at the tuned threshold
-    print("\n[4] Confusion matrix counts")
+    print("\n[3] Confusion matrix counts")
     print(f"  {'Location':16s} {'TP':>5s} {'FP':>5s} {'TN':>5s} {'FN':>5s}")
     for location, r in results:
         print(f"  {location:16s} {r['tp']:5d} {r['fp']:5d} {r['tn']:5d} {r['fn']:5d}")
