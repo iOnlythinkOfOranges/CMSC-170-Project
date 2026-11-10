@@ -20,9 +20,7 @@ DEFAULT_FIG_DIR = os.path.abspath(
 LR_COLOR = "#238b57"
 
 
-def plot_roc_curves(
-    preprocessed_data, gnb_scores, knn_scores, output_dir=DEFAULT_FIG_DIR, *, lr_scores=None
-):
+def plot_roc_curves(preprocessed_data, gnb_scores, knn_scores, lr_scores, output_dir=DEFAULT_FIG_DIR):
     """Plot ROC curves for each model across all locations."""
     os.makedirs(output_dir, exist_ok=True)
     locations = list(preprocessed_data.keys())
@@ -81,9 +79,7 @@ def plot_roc_curves(
     return out_path
 
 
-def plot_metrics_comparison(
-    preprocessed_data, gnb_scores, knn_scores, output_dir=DEFAULT_FIG_DIR, *, lr_scores=None
-):
+def plot_metrics_comparison(preprocessed_data, gnb_scores, knn_scores, lr_scores, output_dir=DEFAULT_FIG_DIR):
     """Plot test F1, accuracy, precision, and recall for each model."""
     os.makedirs(output_dir, exist_ok=True)
     locations = list(preprocessed_data.keys())
@@ -172,9 +168,7 @@ def plot_metrics_comparison(
     return out_path
 
 
-def plot_calibration_curves(
-    preprocessed_data, gnb_scores, knn_scores, output_dir=DEFAULT_FIG_DIR, num_bins=10, *, lr_scores=None
-):
+def plot_calibration_curves(preprocessed_data, gnb_scores, knn_scores, lr_scores, output_dir=DEFAULT_FIG_DIR, num_bins=10):
     """Plot reliability / calibration curves comparing predicted probabilities to empirical rain frequency."""
     os.makedirs(output_dir, exist_ok=True)
     all_y = []
@@ -241,10 +235,7 @@ def plot_calibration_curves(
     return out_path
 
 
-def plot_sample_timeseries(
-    preprocessed_data, gnb_scores, knn_scores, location="Metro Manila", days=60, output_dir=DEFAULT_FIG_DIR,
-    *, lr_scores=None
-):
+def plot_sample_timeseries(preprocessed_data, gnb_scores, knn_scores, lr_scores, output_dir=DEFAULT_FIG_DIR, location="Metro Manila", days=60):
     """Plot sample timeline of predicted rain probability vs actual rain occurrence."""
     os.makedirs(output_dir, exist_ok=True)
     if location not in preprocessed_data:
@@ -294,15 +285,13 @@ def plot_sample_timeseries(
     return out_path
 
 
-def generate_all_plots(
-    preprocessed_data, gnb_scores, knn_scores, output_dir=DEFAULT_FIG_DIR, *, lr_scores=None
-):
+def generate_all_plots(preprocessed_data, gnb_scores, knn_scores, lr_scores, output_dir=DEFAULT_FIG_DIR):
     """Generate the full visualization suite."""
     print("\n" + "=" * 65)
     print("Generating Matplotlib Visualizations...")
     print("=" * 65)
-    plot_roc_curves(preprocessed_data, gnb_scores, knn_scores, output_dir, lr_scores=lr_scores)
-    plot_metrics_comparison(preprocessed_data, gnb_scores, knn_scores, output_dir, lr_scores=lr_scores)
-    plot_calibration_curves(preprocessed_data, gnb_scores, knn_scores, output_dir, lr_scores=lr_scores)
-    plot_sample_timeseries(preprocessed_data, gnb_scores, knn_scores, output_dir=output_dir, lr_scores=lr_scores)
+    plot_roc_curves(preprocessed_data, gnb_scores, knn_scores, lr_scores, output_dir)
+    plot_metrics_comparison(preprocessed_data, gnb_scores, knn_scores, lr_scores, output_dir)
+    plot_calibration_curves(preprocessed_data, gnb_scores, knn_scores, lr_scores, output_dir)
+    plot_sample_timeseries(preprocessed_data, gnb_scores, knn_scores, lr_scores, output_dir)
     print(f"All figures generated successfully in: {output_dir}")
