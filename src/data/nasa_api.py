@@ -64,15 +64,30 @@ LOCATION_ALIASES = {
 def _normalize_row(row):
     normalized = dict(row)
 
-    if "date" in normalized and normalized["date"]:
+    has_date = bool(normalized.get("date"))
+    has_year = bool(normalized.get("YEAR"))
+    has_doy = bool(normalized.get("DOY"))
+
+    if has_date and has_year and has_doy:
+        return normalized
+
+    if has_date:
         date_str = str(normalized["date"]).strip()
-        try:
-            dt = datetime.strptime(date_str, "%Y%m%d")
-            normalized["YEAR"] = str(dt.year)
-            normalized["DOY"] = str(dt.timetuple().tm_yday)
-        except ValueError:
-            pass
-    elif "YEAR" in normalized and "DOY" in normalized:
+        if len(date_str) == 8 and date_str.isdigit():
+            try:
+                dt = datetime(int(date_str[:4]), int(date_str[4:6]), int(date_str[6:8]))
+                normalized["YEAR"] = str(dt.year)
+                normalized["DOY"] = str(dt.timetuple().tm_yday)
+            except ValueError:
+                pass
+        else:
+            try:
+                dt = datetime.strptime(date_str, "%Y%m%d")
+                normalized["YEAR"] = str(dt.year)
+                normalized["DOY"] = str(dt.timetuple().tm_yday)
+            except ValueError:
+                pass
+    elif has_year and has_doy:
         try:
             year = int(normalized["YEAR"])
             doy = int(normalized["DOY"])
@@ -99,14 +114,34 @@ def save_weather_to_csv(rows, file_path):
             writer.writerow(_normalize_row(row))
 
 
+# Filter rows by inclusive date range (YYYYMMDD)
+def _filter_by_date(rows, start_date=None, end_date=None):
+    if not start_date and not end_date:
+        return rows
+    filtered = []
+    for row in rows:
+        d = str(row.get("date", ""))
+        if start_date and d < str(start_date):
+            continue
+        if end_date and d > str(end_date):
+            continue
+        filtered.append(row)
+    return filtered
+
+
 # Load rows from local CSV
-def load_weather_from_csv(file_path):
+def load_weather_from_csv(file_path, start_date=None, end_date=None):
     if not os.path.exists(file_path):
         raise FileNotFoundError(f"Weather CSV file not found: {file_path}")
 
     with open(file_path, mode="r", newline="", encoding="utf-8") as f:
         reader = csv.DictReader(f)
-        return [_normalize_row(row) for row in reader]
+        rows = [_normalize_row(row) for row in reader]
+
+    if start_date or end_date:
+        rows = _filter_by_date(rows, start_date, end_date)
+
+    return rows
 
 
 # Check if local CSV already exists for this location
@@ -143,8 +178,9 @@ def get_weather(
     timeout=60,
     cache_dir=DEFAULT_RAW_DIR,
     force_download=False,
+    location_name=None,
 ):
-    loc_name = _find_location_name_by_coords(latitude, longitude)
+    loc_name = location_name or _find_location_name_by_coords(latitude, longitude)
     if loc_name and not force_download:
         cached_path = find_cached_file(loc_name, cache_dir)
         if cached_path:
@@ -194,6 +230,7 @@ def get_weather(
         slug = loc_name.strip().lower().replace(" ", "_")
         target_path = os.path.join(cache_dir, f"{slug}.csv")
         save_weather_to_csv(rows, target_path)
+        print(f"[Cache saved] Saved {len(rows)} records to {target_path}")
 
     return rows
 
@@ -222,23 +259,15 @@ def get_location_weather(
             raise ValueError(f"Unknown location '{location_name}'. Coordinates required.")
 
     print(f"[NASA API] Fetching '{location_name}' ({latitude}, {longitude}) from {start_date} to {end_date}...")
-    rows = get_weather(
+    return get_weather(
         latitude,
         longitude,
         start_date=start_date,
         end_date=end_date,
         cache_dir=cache_dir,
         force_download=force_download,
+        location_name=location_name,
     )
-
-    os.makedirs(cache_dir, exist_ok=True)
-    slug = location_name.strip().lower().replace(" ", "_")
-    target_path = os.path.join(cache_dir, f"{slug}.csv")
-    if not os.path.exists(target_path):
-        save_weather_to_csv(rows, target_path)
-        print(f"[Cache saved] Saved {len(rows)} records to {target_path}")
-
-    return rows
 
 
 # Ingest data for all locations

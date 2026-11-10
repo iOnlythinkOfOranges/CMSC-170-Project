@@ -4,10 +4,20 @@
 
 # Ref: Powers (2011); binary confusion matrix with Rain (1) as positive class
 def confusion_matrix(y_true, y_pred):
-    tp = sum(1 for yt, yp in zip(y_true, y_pred) if yt == 1 and yp == 1)
-    fp = sum(1 for yt, yp in zip(y_true, y_pred) if yt == 0 and yp == 1)
-    tn = sum(1 for yt, yp in zip(y_true, y_pred) if yt == 0 and yp == 0)
-    fn = sum(1 for yt, yp in zip(y_true, y_pred) if yt == 1 and yp == 0)
+    if len(y_true) != len(y_pred):
+        raise ValueError("y_true and y_pred must have identical length")
+    tp = fp = tn = fn = 0
+    for yt, yp in zip(y_true, y_pred):
+        if yt == 1:
+            if yp == 1:
+                tp += 1
+            else:
+                fn += 1
+        else:
+            if yp == 1:
+                fp += 1
+            else:
+                tn += 1
     return tp, fp, tn, fn
 
 
@@ -43,15 +53,21 @@ def f1_score(y_true, y_pred):
 # Evaluate predictions and return all core metrics
 def evaluate_predictions(y_true, y_pred):
     tp, fp, tn, fn = confusion_matrix(y_true, y_pred)
+    total = tp + fp + tn + fn
+    acc = (tp + tn) / total if total > 0 else 0.0
+    prec = tp / (tp + fp) if (tp + fp) > 0 else 0.0
+    rec = tp / (tp + fn) if (tp + fn) > 0 else 0.0
+    denom = prec + rec
+    f1 = 2.0 * (prec * rec) / denom if denom > 0 else 0.0
     return {
         "tp": tp,
         "fp": fp,
         "tn": tn,
         "fn": fn,
-        "accuracy": accuracy(y_true, y_pred),
-        "precision": precision(y_true, y_pred),
-        "recall": recall(y_true, y_pred),
-        "f1": f1_score(y_true, y_pred),
+        "accuracy": acc,
+        "precision": prec,
+        "recall": rec,
+        "f1": f1,
     }
 
 
@@ -74,11 +90,19 @@ def find_best_threshold(y_true, y_scores, start=0.02, end=0.98, step=0.02):
 
 # Ref: Fawcett (2006); ROC analysis mapping TPR vs FPR across decision thresholds
 def roc_curve(y_true, y_scores, num_points=101):
-    thresholds = [i / (num_points - 1) for i in range(num_points)]
-    thresholds.reverse()
+    unique_scores = sorted(set(y_scores), reverse=True)
+    if num_points and num_points > 1:
+        grid_thresholds = [i / (num_points - 1) for i in range(num_points)]
+        thresholds = sorted(set(unique_scores + grid_thresholds), reverse=True)
+    else:
+        thresholds = unique_scores
+
+    max_score = max(y_scores) if y_scores else 1.0
+    thresholds = [max_score + 1.0] + thresholds
 
     fpr_list = []
     tpr_list = []
+    used_thresholds = []
 
     for tau in thresholds:
         y_pred = [1 if s >= tau else 0 for s in y_scores]
@@ -89,9 +113,10 @@ def roc_curve(y_true, y_scores, num_points=101):
 
         fpr_list.append(fpr)
         tpr_list.append(tpr)
+        used_thresholds.append(tau)
 
-    # Sort monotonically by FPR
-    points = sorted(zip(fpr_list, tpr_list, thresholds), key=lambda p: (p[0], p[1]))
+    # Sort monotonically by FPR, then TPR
+    points = sorted(zip(fpr_list, tpr_list, used_thresholds), key=lambda p: (p[0], p[1]))
     return [p[0] for p in points], [p[1] for p in points], [p[2] for p in points]
 
 

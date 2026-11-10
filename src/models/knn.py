@@ -127,8 +127,8 @@ def predict_knn(X_train, y_train, X_eval, k_value, p_value):
         return rain_scores, [0] * len(rain_scores)
 
     # Convert to numpy arrays for fast math.
-    train_features = np.asarray(X_train[:train_size], dtype=float)
-    train_labels = np.asarray(y_train[:train_size])
+    train_features = np.asarray(X_train, dtype=float)
+    train_labels = np.asarray(y_train)
     rain_scores = []
     predictions = []
 
@@ -163,16 +163,3 @@ def predict_knn(X_train, y_train, X_eval, k_value, p_value):
         predictions.append(predicted_label)
 
     return rain_scores, predictions
-
-#Redundant code, can be removed
-def KNN(preprocessed_data, k_value, p_value):
-    """Return test-set rain scores grouped by location."""
-    rain_scores = {}
-    for location, data in preprocessed_data.items():
-        scores, _ = predict_knn(
-            data["X_train"], data["y_train"], data["X_test"], k_value, p_value
-        )
-        rain_scores[location] = scores
-    return rain_scores
-
-#

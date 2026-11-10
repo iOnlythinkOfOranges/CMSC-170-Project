@@ -3,6 +3,7 @@
 # - Directional Statistics (Mardia & Jupp): https://onlinelibrary.wiley.com/doi/book/10.1002/9780470316979
 # - Technical Documentation: docs/code_decisions_and_implementation.md
 import math
+import numpy as np
 from data.nasa_api import PARAMETERS
 
 # Ref: NASA POWER data dictionary uses -999.0 as missing observation sentinel
@@ -82,12 +83,12 @@ def impute_missing(rows):
                 first_val = r[param]
                 break
 
-        if first_val is not None:
-            for r in imputed:
-                if r.get(param) is None:
-                    r[param] = first_val
-                else:
-                    break
+        fallback = first_val if first_val is not None else 0.0
+        for r in imputed:
+            if r.get(param) is None:
+                r[param] = fallback
+            else:
+                break
 
     return imputed
 
@@ -151,30 +152,22 @@ def train_val_test_split(X, y, target_dates, train_ratio=0.70, val_ratio=0.15):
 
 # Ref: Z-score standardization: fit mean and std strictly on train set to prevent test leakage
 def standardize_features(X_train, X_val, X_test):
-    n_train = len(X_train)
-    num_features = len(X_train[0])
+    if not X_train or len(X_train) == 0:
+        return [], [], [], ([], [])
 
-    # Compute mean for each feature on train set
-    means = [
-        sum(X_train[i][j] for i in range(n_train)) / n_train
-        for j in range(num_features)
-    ]
-
-    # Compute std for each feature on train set
-    stds = []
-    for j in range(num_features):
-        variance = sum((X_train[i][j] - means[j]) ** 2 for i in range(n_train)) / n_train
-        std = math.sqrt(variance)
-        stds.append(std if std > 1e-8 else 1.0)
+    X_train_arr = np.asarray(X_train, dtype=float)
+    means = np.mean(X_train_arr, axis=0)
+    stds = np.std(X_train_arr, axis=0)
+    stds = np.where(stds > 1e-8, stds, 1.0)
 
     # Scale dataset using train statistics
     def scale(dataset):
-        return [
-            [(row[j] - means[j]) / stds[j] for j in range(num_features)]
-            for row in dataset
-        ]
+        if not dataset or len(dataset) == 0:
+            return []
+        arr = (np.asarray(dataset, dtype=float) - means) / stds
+        return arr.tolist()
 
-    return scale(X_train), scale(X_val), scale(X_test), (means, stds)
+    return scale(X_train), scale(X_val), scale(X_test), (means.tolist(), stds.tolist())
 
 
 # Complete end-to-end preprocessing pipeline for one location
@@ -204,5 +197,5 @@ def preprocess_location(rows, window_size=5, rain_threshold=1.0):
         "means": means,
         "stds": stds,
         "window_size": window_size,
-        "feature_count": len(X_train_s[0]),
+        "feature_count": len(X_train_s[0]) if X_train_s else 0,
     }
