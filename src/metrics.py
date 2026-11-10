@@ -4,10 +4,20 @@
 
 # Ref: Powers (2011); binary confusion matrix with Rain (1) as positive class
 def confusion_matrix(y_true, y_pred):
-    tp = sum(1 for yt, yp in zip(y_true, y_pred) if yt == 1 and yp == 1)
-    fp = sum(1 for yt, yp in zip(y_true, y_pred) if yt == 0 and yp == 1)
-    tn = sum(1 for yt, yp in zip(y_true, y_pred) if yt == 0 and yp == 0)
-    fn = sum(1 for yt, yp in zip(y_true, y_pred) if yt == 1 and yp == 0)
+    if len(y_true) != len(y_pred):
+        raise ValueError("y_true and y_pred must have identical length")
+    tp = fp = tn = fn = 0
+    for yt, yp in zip(y_true, y_pred):
+        if yt == 1:
+            if yp == 1:
+                tp += 1
+            else:
+                fn += 1
+        else:
+            if yp == 1:
+                fp += 1
+            else:
+                tn += 1
     return tp, fp, tn, fn
 
 
@@ -43,15 +53,21 @@ def f1_score(y_true, y_pred):
 # Evaluate predictions and return all core metrics
 def evaluate_predictions(y_true, y_pred):
     tp, fp, tn, fn = confusion_matrix(y_true, y_pred)
+    total = tp + fp + tn + fn
+    acc = (tp + tn) / total if total > 0 else 0.0
+    prec = tp / (tp + fp) if (tp + fp) > 0 else 0.0
+    rec = tp / (tp + fn) if (tp + fn) > 0 else 0.0
+    denom = prec + rec
+    f1 = 2.0 * (prec * rec) / denom if denom > 0 else 0.0
     return {
         "tp": tp,
         "fp": fp,
         "tn": tn,
         "fn": fn,
-        "accuracy": accuracy(y_true, y_pred),
-        "precision": precision(y_true, y_pred),
-        "recall": recall(y_true, y_pred),
-        "f1": f1_score(y_true, y_pred),
+        "accuracy": acc,
+        "precision": prec,
+        "recall": rec,
+        "f1": f1,
     }
 
 

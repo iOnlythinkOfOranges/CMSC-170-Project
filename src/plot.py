@@ -4,6 +4,7 @@
 # - Matplotlib Agg backend: https://matplotlib.org/stable/users/explain/figure/backends.html
 
 import os
+os.environ.setdefault("MPLCONFIGDIR", "/tmp/matplotlib")
 import matplotlib
 matplotlib.use("Agg")  # Non-interactive backend for headless execution
 import matplotlib.pyplot as plt

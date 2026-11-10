@@ -64,16 +64,19 @@ def _neighbors_by_row(train_features, train_labels, X_eval, k, p_value):
 def predict_knn(X_train, y_train, X_eval, k_value, p_value):
     """Return one rain score and one voted label per evaluation row."""
 
-    train_size = min(len(X_train), len(y_train))
+    if len(X_train) != len(y_train):
+        raise ValueError("X_train and y_train must have identical length.")
 
-     # Nothing to learn from, or a useless k so we return "no rain" for every test row.
+    train_size = len(X_train)
+
+    # Nothing to learn from, or a useless k so we return "no rain" for every test row.
     if train_size == 0 or k_value <= 0:
         rain_scores = [0.0 for _ in X_eval]
         return rain_scores, [0] * len(rain_scores)
 
     # Convert to numpy arrays for fast math.
-    train_features = np.asarray(X_train[:train_size], dtype=float)
-    train_labels = np.asarray(y_train[:train_size])
+    train_features = np.asarray(X_train, dtype=float)
+    train_labels = np.asarray(y_train)
     rain_scores = []
     predictions = []
 
@@ -97,14 +100,3 @@ def predict_knn(X_train, y_train, X_eval, k_value, p_value):
         predictions.append(predicted_label)
 
     return rain_scores, predictions
-
-
-def KNN(preprocessed_data, k_value, p_value):
-    """Return test-set rain scores grouped by location."""
-    rain_scores = {}
-    for location, data in preprocessed_data.items():
-        scores, _ = predict_knn(
-            data["X_train"], data["y_train"], data["X_test"], k_value, p_value
-        )
-        rain_scores[location] = scores
-    return rain_scores
