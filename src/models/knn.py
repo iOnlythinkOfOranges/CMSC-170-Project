@@ -22,6 +22,8 @@ def _nearest_indices(distances, labels, k):
     selected = np.argpartition(distances, k - 1)[:k]
     cutoff = distances[selected[-1]]    #    # The last slot holds the k-th smallest, i.e. the farthest of the chosen rows.
     tied = np.flatnonzero(distances == cutoff)
+
+    #Decides what to pick if there's a tie
     if len(tied) > 1:
         closer = selected[distances[selected] < cutoff]
         slots = k - len(closer)
@@ -115,7 +117,7 @@ def predict_knn(X_train, y_train, X_eval, k_value, p_value):
     train_size = len(X_train)
 
     #Check if valid k-value first
-    if(k_value>train_size or k_value<0):
+    if(k_value>train_size or k_value<=0):
         print("Invalid k-value entered")
         sys.exit(1) #Exits the program
 
