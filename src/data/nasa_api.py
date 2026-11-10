@@ -99,14 +99,34 @@ def save_weather_to_csv(rows, file_path):
             writer.writerow(_normalize_row(row))
 
 
+# Filter rows by inclusive date range (YYYYMMDD)
+def _filter_by_date(rows, start_date=None, end_date=None):
+    if not start_date and not end_date:
+        return rows
+    filtered = []
+    for row in rows:
+        d = str(row.get("date", ""))
+        if start_date and d < str(start_date):
+            continue
+        if end_date and d > str(end_date):
+            continue
+        filtered.append(row)
+    return filtered
+
+
 # Load rows from local CSV
-def load_weather_from_csv(file_path):
+def load_weather_from_csv(file_path, start_date=None, end_date=None):
     if not os.path.exists(file_path):
         raise FileNotFoundError(f"Weather CSV file not found: {file_path}")
 
     with open(file_path, mode="r", newline="", encoding="utf-8") as f:
         reader = csv.DictReader(f)
-        return [_normalize_row(row) for row in reader]
+        rows = [_normalize_row(row) for row in reader]
+
+    if start_date or end_date:
+        rows = _filter_by_date(rows, start_date, end_date)
+
+    return rows
 
 
 # Check if local CSV already exists for this location

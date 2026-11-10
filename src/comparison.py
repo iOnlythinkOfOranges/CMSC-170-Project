@@ -120,3 +120,10 @@ def run_knn(data):
 def run_compare(preprocessed_data):
     gnb_result = run_gaussian_naive_bayes(preprocessed_data)
     knn_result = run_knn(preprocessed_data)
+
+    # Generate Matplotlib comparison figures
+    try:
+        from plot import generate_all_plots
+        generate_all_plots(preprocessed_data, gnb_result, knn_result)
+    except Exception as e:
+        print(f"[Warning] Failed to generate comparison plots: {e}")
