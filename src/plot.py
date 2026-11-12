@@ -18,9 +18,10 @@ DEFAULT_FIG_DIR = os.path.abspath(
 
 
 LR_COLOR = "#238b57"
+CART_COLOR = "#7b2cbf"
 
 
-def plot_roc_curves(preprocessed_data, gnb_scores, knn_scores, lr_scores, output_dir=DEFAULT_FIG_DIR):
+def plot_roc_curves(preprocessed_data, gnb_scores, knn_scores, lr_scores, cart_scores=None, output_dir=DEFAULT_FIG_DIR):
     """Plot ROC curves for each model across all locations."""
     os.makedirs(output_dir, exist_ok=True)
     locations = list(preprocessed_data.keys())
@@ -52,6 +53,11 @@ def plot_roc_curves(preprocessed_data, gnb_scores, knn_scores, lr_scores, output
             lr_fpr, lr_tpr, _ = roc_curve(y_test, lr_test)
             lr_auc = roc_auc_score(y_test, lr_test)
             ax.plot(lr_fpr, lr_tpr, color=LR_COLOR, lw=2, label=f"LR (AUC = {lr_auc:.3f})")
+        if cart_scores and loc in cart_scores:
+            cart_test = cart_scores[loc]["test_scores"]
+            cart_fpr, cart_tpr, _ = roc_curve(y_test, cart_test)
+            cart_auc = roc_auc_score(y_test, cart_test)
+            ax.plot(cart_fpr, cart_tpr, color=CART_COLOR, lw=2, label=f"CART (AUC = {cart_auc:.3f})")
 
         ax.plot([0, 1], [0, 1], color="gray", lw=1.2, linestyle="--", label="Random Chance")
 
@@ -79,7 +85,7 @@ def plot_roc_curves(preprocessed_data, gnb_scores, knn_scores, lr_scores, output
     return out_path
 
 
-def plot_metrics_comparison(preprocessed_data, gnb_scores, knn_scores, lr_scores, output_dir=DEFAULT_FIG_DIR):
+def plot_metrics_comparison(preprocessed_data, gnb_scores, knn_scores, lr_scores, cart_scores=None, output_dir=DEFAULT_FIG_DIR):
     """Plot test F1, accuracy, precision, and recall for each model."""
     os.makedirs(output_dir, exist_ok=True)
     locations = list(preprocessed_data.keys())
@@ -88,13 +94,15 @@ def plot_metrics_comparison(preprocessed_data, gnb_scores, knn_scores, lr_scores
     gnb_vals = {m: [] for m in metrics_names}
     knn_vals = {m: [] for m in metrics_names}
     lr_vals = {m: [] for m in metrics_names}
+    cart_vals = {m: [] for m in metrics_names}
     lr_positions = []
+    cart_positions = []
 
     for idx, loc in enumerate(locations):
         y_test = preprocessed_data[loc]["y_test"]
+        y_val = preprocessed_data[loc]["y_val"]
 
         # GNB evaluation with tuned threshold from val
-        y_val = preprocessed_data[loc]["y_val"]
         gnb_val = gnb_scores[loc]["val_scores"]
         best_thr, _ = find_best_threshold(y_val, gnb_val)
         gnb_pred = [1 if s >= best_thr else 0 for s in gnb_scores[loc]["test_scores"]]
@@ -115,7 +123,6 @@ def plot_metrics_comparison(preprocessed_data, gnb_scores, knn_scores, lr_scores
         knn_vals["Recall"].append(knn_res["recall"])
 
         if lr_scores and loc in lr_scores:
-            # Apply the validation F1 threshold to the held-out test scores.
             lr = lr_scores[loc]
             lr_thr, _ = find_best_threshold(y_val, lr["val_scores"])
             lr_pred = [1 if s >= lr_thr else 0 for s in lr["test_scores"]]
@@ -126,12 +133,44 @@ def plot_metrics_comparison(preprocessed_data, gnb_scores, knn_scores, lr_scores
             lr_vals["Precision"].append(lr_res["precision"])
             lr_vals["Recall"].append(lr_res["recall"])
 
-    fig, axes = plt.subplots(2, 2, figsize=(14, 10))
+        if cart_scores and loc in cart_scores:
+            cart = cart_scores[loc]
+            cart_thr, _ = find_best_threshold(y_val, cart["val_scores"])
+            cart_pred = [1 if s >= cart_thr else 0 for s in cart["test_scores"]]
+            cart_res = evaluate_predictions(y_test, cart_pred)
+            cart_positions.append(idx)
+            cart_vals["Accuracy"].append(cart_res["accuracy"])
+            cart_vals["F1-score"].append(cart_res["f1"])
+            cart_vals["Precision"].append(cart_res["precision"])
+            cart_vals["Recall"].append(cart_res["recall"])
+
+    fig, axes = plt.subplots(2, 2, figsize=(15, 10))
     axes = axes.flatten()
     x = np.arange(len(locations))
-    width = 0.25 if lr_positions else 0.35
-    gnb_x = x - width if lr_positions else x - width / 2
-    knn_x = x if lr_positions else x + width / 2
+
+    has_lr = bool(lr_positions)
+    has_cart = bool(cart_positions)
+
+    if has_lr and has_cart:
+        width = 0.18
+        gnb_x = x - 1.5 * width
+        knn_x = x - 0.5 * width
+        lr_x = x + 0.5 * width
+        cart_x = x + 1.5 * width
+    elif has_lr:
+        width = 0.25
+        gnb_x = x - width
+        knn_x = x
+        lr_x = x + width
+    elif has_cart:
+        width = 0.25
+        gnb_x = x - width
+        knn_x = x
+        cart_x = x + width
+    else:
+        width = 0.35
+        gnb_x = x - width / 2
+        knn_x = x + width / 2
 
     for idx, metric in enumerate(metrics_names):
         ax = axes[idx]
@@ -139,10 +178,15 @@ def plot_metrics_comparison(preprocessed_data, gnb_scores, knn_scores, lr_scores
             ax.bar(gnb_x, gnb_vals[metric], width, label="Gaussian Naive Bayes", color="#2b5c8f"),
             ax.bar(knn_x, knn_vals[metric], width, label="KNN (k=15)", color="#e65c00"),
         ]
-        if lr_positions:
+        if has_lr:
             bar_groups.append(ax.bar(
-                x[lr_positions] + width, lr_vals[metric], width,
+                lr_x[lr_positions], lr_vals[metric], width,
                 label="Logistic Regression", color=LR_COLOR,
+            ))
+        if has_cart:
+            bar_groups.append(ax.bar(
+                cart_x[cart_positions], cart_vals[metric], width,
+                label="CART Decision Tree", color=CART_COLOR,
             ))
 
         ax.set_title(f"Test Set {metric}", fontsize=12, fontweight="bold")
@@ -168,7 +212,7 @@ def plot_metrics_comparison(preprocessed_data, gnb_scores, knn_scores, lr_scores
     return out_path
 
 
-def plot_calibration_curves(preprocessed_data, gnb_scores, knn_scores, lr_scores, output_dir=DEFAULT_FIG_DIR, num_bins=10):
+def plot_calibration_curves(preprocessed_data, gnb_scores, knn_scores, lr_scores, cart_scores=None, output_dir=DEFAULT_FIG_DIR, num_bins=10):
     """Plot reliability / calibration curves comparing predicted probabilities to empirical rain frequency."""
     os.makedirs(output_dir, exist_ok=True)
     all_y = []
@@ -176,6 +220,8 @@ def plot_calibration_curves(preprocessed_data, gnb_scores, knn_scores, lr_scores
     all_knn = []
     all_lr = []
     all_lr_y = []
+    all_cart = []
+    all_cart_y = []
 
     for loc, data in preprocessed_data.items():
         all_y.extend(data["y_test"])
@@ -184,6 +230,9 @@ def plot_calibration_curves(preprocessed_data, gnb_scores, knn_scores, lr_scores
         if lr_scores and loc in lr_scores:
             all_lr.extend(lr_scores[loc]["test_scores"])
             all_lr_y.extend(data["y_test"])
+        if cart_scores and loc in cart_scores:
+            all_cart.extend(cart_scores[loc]["test_scores"])
+            all_cart_y.extend(data["y_test"])
 
     all_y = np.array(all_y)
     all_gnb = np.array(all_gnb)
@@ -218,6 +267,9 @@ def plot_calibration_curves(preprocessed_data, gnb_scores, knn_scores, lr_scores
     if all_lr:
         lr_x, lr_y_calib, _ = compute_calibration(np.array(all_lr), np.array(all_lr_y))
         ax.plot(lr_x, lr_y_calib, "^-", color=LR_COLOR, lw=2, ms=6, label="Logistic Regression")
+    if all_cart:
+        cart_x, cart_y_calib, _ = compute_calibration(np.array(all_cart), np.array(all_cart_y))
+        ax.plot(cart_x, cart_y_calib, "d-", color=CART_COLOR, lw=2, ms=6, label="CART Decision Tree")
 
     ax.set_title("Probability Calibration Diagram (Reliability Curve)", fontsize=13, fontweight="bold")
     ax.set_xlabel("Mean Forecast Probability P(Rain)", fontsize=11)
@@ -235,7 +287,7 @@ def plot_calibration_curves(preprocessed_data, gnb_scores, knn_scores, lr_scores
     return out_path
 
 
-def plot_sample_timeseries(preprocessed_data, gnb_scores, knn_scores, lr_scores, output_dir=DEFAULT_FIG_DIR, location="Metro Manila", days=60):
+def plot_sample_timeseries(preprocessed_data, gnb_scores, knn_scores, lr_scores, cart_scores=None, output_dir=DEFAULT_FIG_DIR, location="Metro Manila", days=60):
     """Plot sample timeline of predicted rain probability vs actual rain occurrence."""
     os.makedirs(output_dir, exist_ok=True)
     if location not in preprocessed_data:
@@ -259,6 +311,9 @@ def plot_sample_timeseries(preprocessed_data, gnb_scores, knn_scores, lr_scores,
     if lr_scores and location in lr_scores:
         lr_p = lr_scores[location]["test_scores"][:days]
         ax.plot(x, lr_p, color=LR_COLOR, lw=2, marker="^", ms=4, label="Logistic Regression P(Rain)")
+    if cart_scores and location in cart_scores:
+        cart_p = cart_scores[location]["test_scores"][:days]
+        ax.plot(x, cart_p, color=CART_COLOR, lw=2, marker="d", ms=4, label="CART Decision Tree P(Rain)")
     ax.axhline(0.5, color="red", linestyle=":", lw=1.2, label="0.5 Decision Boundary")
 
     # Format x-axis with date labels
@@ -285,13 +340,98 @@ def plot_sample_timeseries(preprocessed_data, gnb_scores, knn_scores, lr_scores,
     return out_path
 
 
-def generate_all_plots(preprocessed_data, gnb_scores, knn_scores, lr_scores, output_dir=DEFAULT_FIG_DIR):
+def generate_all_plots(preprocessed_data, gnb_scores, knn_scores, lr_scores, cart_scores=None, output_dir=DEFAULT_FIG_DIR):
     """Generate the full visualization suite."""
     print("\n" + "=" * 65)
     print("Generating Matplotlib Visualizations...")
     print("=" * 65)
-    plot_roc_curves(preprocessed_data, gnb_scores, knn_scores, lr_scores, output_dir)
-    plot_metrics_comparison(preprocessed_data, gnb_scores, knn_scores, lr_scores, output_dir)
-    plot_calibration_curves(preprocessed_data, gnb_scores, knn_scores, lr_scores, output_dir)
-    plot_sample_timeseries(preprocessed_data, gnb_scores, knn_scores, lr_scores, output_dir)
+    plot_roc_curves(preprocessed_data, gnb_scores, knn_scores, lr_scores, cart_scores, output_dir)
+    plot_metrics_comparison(preprocessed_data, gnb_scores, knn_scores, lr_scores, cart_scores, output_dir)
+    plot_calibration_curves(preprocessed_data, gnb_scores, knn_scores, lr_scores, cart_scores, output_dir)
+    plot_sample_timeseries(preprocessed_data, gnb_scores, knn_scores, lr_scores, cart_scores, output_dir)
     print(f"All figures generated successfully in: {output_dir}")
+
+
+def plot_window_size_comparison(window_results, output_dir=DEFAULT_FIG_DIR):
+    """
+    Plot metrics across different sliding window sizes (e.g. 3, 5, 7 days).
+
+    Parameters:
+    -----------
+    window_results : dict
+        Mapping window_size (int) -> dict of model_name -> dict of metrics:
+        {"accuracy": float, "f1": float, "precision": float, "recall": float, "auc": float, "brier": float}
+    """
+    os.makedirs(output_dir, exist_ok=True)
+    window_sizes = sorted(window_results.keys())
+
+    fig, axes = plt.subplots(2, 2, figsize=(14, 10))
+    axes = axes.flatten()
+
+    model_styles = {
+        "CART Decision Tree": {"color": CART_COLOR, "marker": "D", "lw": 2.2, "ms": 7},
+        "Logistic Regression": {"color": LR_COLOR, "marker": "^", "lw": 2.0, "ms": 7},
+        "KNN (k=15)": {"color": "#e65c00", "marker": "o", "lw": 2.0, "ms": 7},
+        "Gaussian Naive Bayes": {"color": "#2b5c8f", "marker": "s", "lw": 2.0, "ms": 6},
+        "Always-Rain Baseline": {"color": "#7f7f7f", "marker": "x", "lw": 1.5, "ls": "--", "ms": 6},
+    }
+
+    metric_configs = [
+        ("f1", "Test F1-Score (Higher is Better)", [0.75, 0.95]),
+        ("accuracy", "Test Accuracy (Higher is Better)", [0.70, 0.90]),
+        ("auc", "ROC-AUC Discrimination (Higher is Better)", [0.65, 0.95]),
+        ("brier", "Brier Score / MSE (Lower is Better)", [0.08, 0.30]),
+    ]
+
+    for idx, (m_key, title, ylim) in enumerate(metric_configs):
+        ax = axes[idx]
+        for model_name, style in model_styles.items():
+            vals = []
+            for w in window_sizes:
+                if model_name in window_results[w] and m_key in window_results[w][model_name]:
+                    vals.append(window_results[w][model_name][m_key])
+                else:
+                    vals.append(np.nan)
+
+            if not all(np.isnan(vals)):
+                ax.plot(
+                    window_sizes,
+                    vals,
+                    label=model_name,
+                    color=style.get("color"),
+                    marker=style.get("marker"),
+                    linestyle=style.get("ls", "-"),
+                    linewidth=style.get("lw", 2),
+                    markersize=style.get("ms", 6),
+                )
+
+                for w, v in zip(window_sizes, vals):
+                    if not np.isnan(v):
+                        ax.annotate(
+                            f"{v:.3f}",
+                            xy=(w, v),
+                            xytext=(0, 6 if m_key != "brier" else -12),
+                            textcoords="offset points",
+                            ha="center",
+                            fontsize=8,
+                            fontweight="bold" if "CART" in model_name else "normal",
+                        )
+
+        ax.set_title(title, fontsize=12, fontweight="bold")
+        ax.set_xlabel("Lookback Window Size (Days)", fontsize=10)
+        ax.set_ylabel("Score", fontsize=10)
+        ax.set_xticks(window_sizes)
+        ax.set_xticklabels([f"{w} Days\n({w*11} feat)" for w in window_sizes])
+        ax.grid(True, linestyle=":", alpha=0.6)
+        ax.legend(fontsize=9, loc="best")
+        if ylim:
+            ax.set_ylim(ylim)
+
+    fig.suptitle("Model Performance Across Sliding Window Lookback Sizes (3, 5, 7 Days)", fontsize=14, fontweight="bold", y=1.01)
+    plt.tight_layout()
+    out_path = os.path.join(output_dir, "window_size_comparison.png")
+    plt.savefig(out_path, dpi=200, bbox_inches="tight")
+    plt.close(fig)
+    print(f"[Plot saved] Window size comparison saved to: {out_path}")
+    return out_path
+
