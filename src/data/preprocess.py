@@ -137,15 +137,61 @@ def create_sliding_windows(rows, window_size=5, rain_threshold=1.0):
     return X, y, target_dates
 
 
-# Ref: Chronological 70/15/15 split without shuffling prevents temporal data leakage
-def train_val_test_split(X, y, target_dates, train_ratio=0.70, val_ratio=0.15):
+# Ref: Chronological split (calendar-based or ratio) without shuffling prevents temporal data leakage
+def train_val_test_split(
+    X,
+    y,
+    target_dates=None,
+    train_ratio=0.70,
+    val_ratio=0.15,
+    purge_window=0,
+    train_end_date="20171231",
+    val_end_date="20201231",
+):
     n = len(X)
+    if target_dates is not None and len(target_dates) == n and any(target_dates):
+        train_idx = [i for i, d in enumerate(target_dates) if d and str(d) <= str(train_end_date)]
+        val_idx = [
+            i
+            for i, d in enumerate(target_dates)
+            if d and str(train_end_date) < str(d) <= str(val_end_date)
+        ]
+        test_idx = [i for i, d in enumerate(target_dates) if d and str(d) > str(val_end_date)]
+
+        if purge_window > 0:
+            val_idx = val_idx[purge_window:]
+            test_idx = test_idx[purge_window:]
+
+        train = (
+            [X[i] for i in train_idx],
+            [y[i] for i in train_idx],
+            [target_dates[i] for i in train_idx],
+        )
+        val = (
+            [X[i] for i in val_idx],
+            [y[i] for i in val_idx],
+            [target_dates[i] for i in val_idx],
+        )
+        test = (
+            [X[i] for i in test_idx],
+            [y[i] for i in test_idx],
+            [target_dates[i] for i in test_idx],
+        )
+        return train, val, test
+
     train_end = int(n * train_ratio)
     val_end = int(n * (train_ratio + val_ratio))
 
-    train = X[:train_end], y[:train_end], target_dates[:train_end]
-    val = X[train_end:val_end], y[train_end:val_end], target_dates[train_end:val_end]
-    test = X[val_end:], y[val_end:], target_dates[val_end:]
+    val_start = train_end + purge_window if purge_window > 0 else train_end
+    test_start = val_end + purge_window if purge_window > 0 else val_end
+
+    d_train = target_dates[:train_end] if target_dates is not None else None
+    d_val = target_dates[val_start:val_end] if target_dates is not None else None
+    d_test = target_dates[test_start:] if target_dates is not None else None
+
+    train = X[:train_end], y[:train_end], d_train
+    val = X[val_start:val_end], y[val_start:val_end], d_val
+    test = X[test_start:], y[test_start:], d_test
 
     return train, val, test
 

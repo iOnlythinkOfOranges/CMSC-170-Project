@@ -113,16 +113,13 @@ def _neighbors_by_row(train_features, train_labels, X_eval, k, p_value):
 
 def predict_knn(X_train, y_train, X_eval, k_value, p_value):
     """Return one rain score and one voted label per evaluation row."""
-    
+    if len(X_train) != len(y_train):
+        raise ValueError("X_train and y_train must have the same length.")
+
     train_size = len(X_train)
 
-    #Check if valid k-value first
-    if(k_value>train_size or k_value<=0):
-        print("Invalid k-value entered")
-        sys.exit(1) #Exits the program
-
-     # Nothing to learn from so do "no rain" for every test row.
-    if train_size == 0:
+    # Empty training set or non-positive / out-of-range k: default to 0
+    if train_size == 0 or k_value <= 0 or k_value > train_size:
         rain_scores = [0.0 for _ in X_eval]
         return rain_scores, [0] * len(rain_scores)
 

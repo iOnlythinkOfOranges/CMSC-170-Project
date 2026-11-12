@@ -27,18 +27,53 @@ PARAMETERS = (
 
 # Coordinates reference PAGASA Synoptic Weather Stations across Coronas Climate Types I-IV
 LOCATIONS = {
+    # --- Benchmark Stations (Coronas Types I - IV) ---
     # Ref: PAGASA Science Garden Synoptic Station, Quezon City (Coronas Type I)
     "Metro Manila": (14.6400, 121.0400),
+    # Ref: PAGASA Baguio Synoptic Station, Benguet (Coronas Type I Highland)
+    "Baguio": (16.4023, 120.5960),
+    # Ref: PAGASA Legazpi Synoptic Station, Albay (Coronas Type II)
+    "Legazpi City": (13.1391, 123.7438),
     # Ref: PAGASA Mactan / Cebu Complex Synoptic Station (Coronas Type III)
     "Cebu City": (10.3157, 123.8854),
     # Ref: PAGASA Davao Synoptic Station, F. Bangoy Airport (Coronas Type IV)
     "Davao City": (7.1907, 125.4553),
-    # Ref: PAGASA Legazpi Synoptic Station, Albay (Coronas Type II)
-    "Legazpi City": (13.1391, 123.7438),
-    # Ref: PAGASA Baguio Synoptic Station, Benguet (Coronas Type I Highland)
-    "Baguio": (16.4023, 120.5960),
     # Ref: PAGASA Zamboanga Synoptic Station, Airport (Coronas Type III)
     "Zamboanga City": (6.9214, 122.0790),
+
+    # --- Expanded Synoptic Stations (Coronas Types I - IV) ---
+    # Ref: PAGASA Tacloban City Synoptic Station, Leyte (Coronas Type II)
+    "Tacloban City": (11.2433, 125.0047),
+    # Ref: PAGASA Puerto Princesa City Synoptic Station, Palawan (Coronas Type I/III)
+    "Puerto Princesa": (9.7392, 118.7353),
+    # Ref: PAGASA Surigao City Synoptic Station, Surigao del Norte (Coronas Type II)
+    "Surigao City": (9.7894, 125.4957),
+    # Ref: PAGASA Tuguegarao City Synoptic Station, Cagayan (Coronas Type III)
+    "Tuguegarao City": (17.6131, 121.7270),
+    # Ref: PAGASA Iloilo City Synoptic Station, Iloilo (Coronas Type I)
+    "Iloilo City": (10.7202, 122.5621),
+    # Ref: PAGASA Basco Radar / Synoptic Station, Batanes (Coronas Type II)
+    "Basco": (20.4485, 121.9705),
+    # Ref: PAGASA General Santos City Synoptic Station, South Cotabato (Coronas Type IV)
+    "General Santos City": (6.1164, 125.1716),
+    # Ref: PAGASA Laoag City Synoptic Station, Ilocos Norte (Coronas Type I)
+    "Laoag City": (18.1960, 120.5927),
+    # Ref: PAGASA Guiuan Synoptic & Radar Station, Eastern Samar (Coronas Type II)
+    "Guiuan": (11.0328, 125.7281),
+    # Ref: PAGASA Casiguran Synoptic Station, Aurora (Coronas Type II)
+    "Casiguran": (16.2797, 122.1294),
+    # Ref: PAGASA Hinatuan Synoptic Station, Surigao del Sur (Coronas Type II)
+    "Hinatuan": (8.3683, 126.3344),
+    # Ref: PAGASA Malaybalay Synoptic Station, Bukidnon (Coronas Type III/IV)
+    "Malaybalay": (8.1575, 125.1278),
+    # Ref: PAGASA Virac Synoptic & Radar Station, Catanduanes (Coronas Type II)
+    "Virac": (13.5786, 124.2372),
+    # Ref: PAGASA Aparri Synoptic Station, Cagayan (Coronas Type II/III)
+    "Aparri": (18.3589, 121.6425),
+    # Ref: PAGASA San Jose Synoptic Station, Occidental Mindoro (Coronas Type I)
+    "San Jose": (12.3533, 121.0608),
+    # Ref: PAGASA Cotabato City Synoptic Station, Maguindanao (Coronas Type IV)
+    "Cotabato City": (7.2189, 124.2458),
 }
 
 DEFAULT_RAW_DIR = os.path.abspath(
@@ -54,9 +89,32 @@ LOCATION_ALIASES = {
     "davao": ["davao.csv", "davao_city.csv"],
     "legazpi city": ["legazpi_city.csv", "legazpi.csv"],
     "legazpi": ["legazpi.csv", "legazpi_city.csv"],
-    "baguio": ["baguio.csv"],
+    "baguio": ["baguio.csv", "baguio_city.csv"],
     "zamboanga city": ["zamboanga_city.csv", "zamboanga.csv"],
     "zamboanga": ["zamboanga.csv", "zamboanga_city.csv"],
+    "tacloban city": ["tacloban_city.csv", "tacloban.csv"],
+    "tacloban": ["tacloban.csv", "tacloban_city.csv"],
+    "puerto princesa": ["puerto_princesa.csv", "puerto_princesa_city.csv"],
+    "surigao city": ["surigao_city.csv", "surigao.csv"],
+    "surigao": ["surigao.csv", "surigao_city.csv"],
+    "tuguegarao city": ["tuguegarao_city.csv", "tuguegarao.csv"],
+    "tuguegarao": ["tuguegarao.csv", "tuguegarao_city.csv"],
+    "iloilo city": ["iloilo_city.csv", "iloilo.csv"],
+    "iloilo": ["iloilo.csv", "iloilo_city.csv"],
+    "basco": ["basco.csv"],
+    "general santos city": ["general_santos_city.csv", "general_santos.csv", "gen_santos.csv"],
+    "general santos": ["general_santos.csv", "general_santos_city.csv", "gen_santos.csv"],
+    "laoag city": ["laoag_city.csv", "laoag.csv"],
+    "laoag": ["laoag.csv", "laoag_city.csv"],
+    "guiuan": ["guiuan.csv"],
+    "casiguran": ["casiguran.csv"],
+    "hinatuan": ["hinatuan.csv"],
+    "malaybalay": ["malaybalay.csv", "malaybalay_city.csv"],
+    "virac": ["virac.csv"],
+    "aparri": ["aparri.csv"],
+    "san jose": ["san_jose.csv"],
+    "cotabato city": ["cotabato_city.csv", "cotabato.csv"],
+    "cotabato": ["cotabato.csv", "cotabato_city.csv"],
 }
 
 
