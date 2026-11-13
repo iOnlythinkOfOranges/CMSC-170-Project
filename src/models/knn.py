@@ -160,3 +160,33 @@ def predict_knn(X_train, y_train, X_eval, k_value, p_value):
         predictions.append(predicted_label)
 
     return rain_scores, predictions
+
+
+class KNearestNeighbors:
+    """Object-oriented interface for K-Nearest Neighbors matching GNB, LR, and CART."""
+
+    def __init__(self, k=15, p=2):
+        self.k = k
+        self.p = p
+        self.X_train_ = None
+        self.y_train_ = None
+
+    def fit(self, X, y):
+        self.X_train_ = X
+        self.y_train_ = y
+        return self
+
+    def predict_proba(self, X):
+        scores, _ = predict_knn(self.X_train_, self.y_train_, X, self.k, self.p)
+        return scores
+
+    def predict(self, X, threshold=0.5):
+        if threshold == 0.5:
+            _, preds = predict_knn(self.X_train_, self.y_train_, X, self.k, self.p)
+            return preds
+        scores = self.predict_proba(X)
+        return [1 if s >= threshold else 0 for s in scores]
+
+
+# Aliases
+KNN = KNearestNeighbors

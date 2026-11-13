@@ -4,6 +4,7 @@ from data.nasa_api import LOCATIONS, get_location_weather
 from data.preprocess import preprocess_location
 from comparison import run_compare
 from window_comparison import run_window_size_experiments
+from eda import run_eda
 
 START_DATE = "20000101"
 END_DATE = "20241231"
@@ -33,7 +34,19 @@ def main():
         action="store_true",
         help="Run on core 6 synoptic stations only for fast execution",
     )
+    parser.add_argument(
+        "--eda",
+        action="store_true",
+        help="Run Exploratory Data Analysis (EDA) on raw vs. preprocessed data and generate diagnostic plots",
+    )
     args = parser.parse_args()
+
+    if args.eda:
+        loc_subset = [
+            "Metro Manila", "Baguio", "Legazpi City", "Cebu City", "Davao City", "Zamboanga City"
+        ] if args.quick else None
+        run_eda(locations=loc_subset)
+        return
 
     if args.compare_windows:
         w_sizes = [int(x.strip()) for x in args.window_sizes.split(",") if x.strip()]

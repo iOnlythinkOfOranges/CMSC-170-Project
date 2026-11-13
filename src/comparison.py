@@ -255,11 +255,88 @@ def run_cart_decision_tree(preprocessed_data, max_depth=5, min_samples_split=50,
     return scores_by_location
 
 
+def print_test_summary(preprocessed_data, gnb_scores, knn_scores, lr_scores, cart_scores):
+    """Evaluate all 4 models on the held-out TEST set using validation-tuned thresholds."""
+    print("\n" + "=" * 88)
+    print("FINAL HELD-OUT TEST SET EVALUATION (2021 - 2024) ACROSS ALL MODELS")
+    print("=" * 88)
+
+    model_configs = [
+        ("Always-Rain Baseline", None),
+        ("Gaussian Naive Bayes", gnb_scores),
+        ("KNN (k=15)", knn_scores),
+        ("Logistic Regression", lr_scores),
+        ("CART Decision Tree", cart_scores),
+    ]
+
+    overall = {name: {"y_true": [], "y_pred": [], "scores": []} for name, _ in model_configs}
+
+    print(f"\n[Per-Location Test F1-Score Comparison]")
+    print(f"  {'Location':20s} {'Baseline':>10s} {'GNB':>10s} {'KNN':>10s} {'LogReg':>10s} {'CART':>10s}")
+    print("  " + "-" * 74)
+
+    for location, data in preprocessed_data.items():
+        y_train = data["y_train"]
+        y_val = data["y_val"]
+        y_test = data["y_test"]
+        if not len(y_test):
+            continue
+
+        row_f1 = {}
+        for name, scores_dict in model_configs:
+            if name == "Always-Rain Baseline":
+                test_pred = [1] * len(y_test)
+                rain_prior = sum(y_train) / len(y_train) if len(y_train) else 1.0
+                test_sc = [rain_prior] * len(y_test)
+            elif name == "KNN (k=15)":
+                test_sc = scores_dict[location]["test_scores"]
+                test_pred = [1 if s >= 0.5 else 0 for s in test_sc]
+            else:
+                val_sc = scores_dict[location]["val_scores"]
+                test_sc = scores_dict[location]["test_scores"]
+                thr, _ = find_best_threshold(y_val, val_sc)
+                test_pred = [1 if s >= thr else 0 for s in test_sc]
+
+            res = evaluate_predictions(y_test, test_pred)
+            row_f1[name] = res["f1"]
+
+            overall[name]["y_true"].extend(y_test)
+            overall[name]["y_pred"].extend(test_pred)
+            overall[name]["scores"].extend(test_sc)
+
+        print(
+            f"  {location:20s} "
+            f"{row_f1['Always-Rain Baseline']:10.4f} "
+            f"{row_f1['Gaussian Naive Bayes']:10.4f} "
+            f"{row_f1['KNN (k=15)']:10.4f} "
+            f"{row_f1['Logistic Regression']:10.4f} "
+            f"{row_f1['CART Decision Tree']:10.4f}"
+        )
+
+    print(f"\n[Nationwide Overall Test Set Metrics ({len(overall['Always-Rain Baseline']['y_true'])} total test days)]")
+    print(f"  {'Model':22s} {'Accuracy':>10s} {'Precision':>10s} {'Recall':>10s} {'F1-Score':>10s} {'ROC-AUC':>10s}")
+    print("  " + "-" * 76)
+
+    for name, _ in model_configs:
+        yt = overall[name]["y_true"]
+        yp = overall[name]["y_pred"]
+        sc = overall[name]["scores"]
+        r = evaluate_predictions(yt, yp)
+        auc = 0.5000 if name == "Always-Rain Baseline" else roc_auc_score(yt, sc)
+        print(
+            f"  {name:22s} {r['accuracy']:10.4f} {r['precision']:10.4f} "
+            f"{r['recall']:10.4f} {r['f1']:10.4f} {auc:10.4f}"
+        )
+
+
 def run_compare(preprocessed_data):
     gnb_result = run_gaussian_naive_bayes(preprocessed_data)
     knn_result = run_knn(preprocessed_data)
     lr_result = run_logistic_regression(preprocessed_data)
     cart_result = run_cart_decision_tree(preprocessed_data)
+
+    # Print unified final held-out test set evaluation across all 4 models
+    print_test_summary(preprocessed_data, gnb_result, knn_result, lr_result, cart_result)
 
     # Generate Matplotlib comparison figures
     try:
