@@ -234,11 +234,14 @@ All figures generated successfully in: c:\Users\orij\School\3Y1S\170\CMSC-170-Pr
 ![Predicted rain probabilities and observed rainy days in Metro Manila](figures/timeseries_metro_manila.png)
 
 ### Discussion
+We compared the three models across 6 Philippine locations. Each model used the previous 5 days of weather data to predict whether the next day would have more than 1 mm of rain. Among the three models, Logistic Regression had the highest F1 score and ROC-AUC across all six locations. Its F1 score was 0.896, followed by K-Nearest Neighbors at 0.880, and finally, Gaussian Naive Bayes at 0.886.
+
+
 
 ### Conclusion
+The previous 5 days of weather helped predict the weather for the next day across the six locations we tested. Logistic Regression was the strongest of the methods in this experiment.
 
 ### References
-
 - Patkar, U., Maske, S., Ahmad, S., Mengade, R., & Sadawarti, G. (2021). Weather prediction using machine learning. GIS Science Journal, 8(12), 118-125. [https\://www\.researchgate.net/publication/362517661_WEATHER_PREDICTION_USING_MACHINE_LEARNING](https://www.researchgate.net/publication/362517661_WEATHER_PREDICTION_USING_MACHINE_LEARNING)
 
 - Powers, D. M. W. (2011). Evaluation: From precision, recall and F-measure to ROC, informedness, markedness and correlation. _Journal of Machine Learning Technologies_, _2_(1), 37–63. [https\://www\.researchgate.net/publication/228529307](https://www.researchgate.net/publication/228529307)
