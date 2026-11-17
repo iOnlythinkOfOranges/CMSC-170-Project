@@ -80,20 +80,22 @@ def run_gaussian_naive_bayes(preprocessed_data):
     return scores_by_location
 
 
-def run_knn(data):
-    """Return validation and test rain scores by location and print test metrics"""
-    k_value, p_value = 15, 2
-    print("K-nearest neighbour output")
-    print("k-value: ", k_value, "\t", "p-value: ", p_value)
+def run_knn(preprocessed_data):
+    print("\n" + "=" * 78)
+    print("K Nearest Neighbours")
+    print("=" * 78)
+
+    k_value = 15
+    p_value = 2
 
     results = {}
     scores_by_location = {}
     all_labels = []
     all_predictions = []
-    for location, city_data in data.items():
+    for location, city_data in preprocessed_data.items():
         X_train, y_train = city_data["X_train"], city_data["y_train"]
         X_test, y_test = city_data["X_test"], city_data["y_test"]
-        print(location, "train:", len(X_train), "-> test:", len(X_test))
+        # print(location, "train:", len(X_train), "-> test:", len(X_test))
         val_scores, _ = predict_knn(X_train, y_train, city_data["X_val"], k_value, p_value)
         test_scores, predictions = predict_knn(X_train, y_train, X_test, k_value, p_value)
         scores_by_location[location] = {
@@ -104,17 +106,42 @@ def run_knn(data):
         all_labels.extend(y_test)
         all_predictions.extend(predictions)
 
-    results["OVERALL"] = evaluate_predictions(all_labels, all_predictions)
-    for location, result in results.items():
-        print("\n" + location)
-        print(
-            "  Confusion matrix [[TN FP] [FN TP]]:",
-            [[result["tn"], result["fp"]], [result["fn"], result["tp"]]],
-        )
-        print("  Accuracy :", round(result["accuracy"], 4))
-        print("  Precision:", round(result["precision"], 4))
-        print("  Recall   :", round(result["recall"], 4))
-        print("  F1-score :", round(result["f1"], 4))
+    #Raw output: first 10 validation days of the first location
+    first = next(iter(scores_by_location))
+    probs = scores_by_location[first]["val_scores"][:10]
+    print(f"\n[1] Sample predictions, {first} (first 10 validation days)")
+    print(f"  {'Day':>3s} {'P(rain)':>8s} {'Pred@0.5':>9s} {'Actual':>7s}")
+    for i, p in enumerate(probs):
+        print(f"  {i:3d} {p:8.3f} {int(p >= 0.5):9d} {preprocessed_data[first]['y_val'][i]:7d}")
+    
+    #Metrics
+    print("\n[2] Metrics (threshold tuned on validation F1)")
+    print(f"  {'Location':16s} {'Thr':>5s} {'F1':>6s} {'Prec':>6s} {'Rec':>6s} {'Acc':>6s} "
+          f"{'AUC':>6s} | {'AlwaysRain F1':>13s} {'AlwaysRain Acc':>14s}")
+    results = []
+
+    for location, scores in scores_by_location.items():
+        y_val = preprocessed_data[location]["y_val"]
+        val_scores = scores["val_scores"]
+        best_threshold, _ = find_best_threshold(y_val, val_scores)
+
+        val_pred = [1 if score >= best_threshold else 0 for score in val_scores]
+        r = evaluate_predictions(y_val, val_pred)
+        auc = roc_auc_score(y_val, val_scores)
+
+        # Baseline: always predict the majority class (rain)
+        base = evaluate_predictions(y_val, [1] * len(y_val))
+
+        print(f"  {location:16s} {best_threshold:5.2f} {r['f1']:6.3f} {r['precision']:6.3f} "
+              f"{r['recall']:6.3f} {r['accuracy']:6.3f} {auc:6.3f} | "
+              f"{base['f1']:13.3f} {base['accuracy']:14.3f}")
+        results.append((location, r))
+    
+    #Confusion matrix counts
+    print("\n[3] Confusion matrix counts")
+    print(f"  {'Location':16s} {'TP':>5s} {'FP':>5s} {'TN':>5s} {'FN':>5s}")
+    for location, r in results:
+        print(f"  {location:16s} {r['tp']:5d} {r['fp']:5d} {r['tn']:5d} {r['fn']:5d}")
 
     return scores_by_location
 
