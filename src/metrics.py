@@ -2,6 +2,11 @@
 # - Powers (2011) Evaluation Metrics: https://www.researchgate.net/publication/228529307
 # - Fawcett (2006) ROC Analysis: https://doi.org/10.1016/j.patrec.2005.10.010
 
+# Threshold search range (used by find_best_threshold)
+THRESHOLD_START = 0.02
+THRESHOLD_END = 0.98
+THRESHOLD_STEP = 0.02
+
 # Ref: Powers (2011); binary confusion matrix with Rain (1) as positive class
 def confusion_matrix(y_true, y_pred):
     if len(y_true) != len(y_pred):
@@ -72,7 +77,7 @@ def evaluate_predictions(y_true, y_pred):
 
 
 # Ref: Empirical threshold calibration on validation set to maximize F1 under class imbalance
-def find_best_threshold(y_true, y_scores, start=0.02, end=0.98, step=0.02):
+def find_best_threshold(y_true, y_scores, start=THRESHOLD_START, end=THRESHOLD_END, step=THRESHOLD_STEP):
     best_threshold = 0.50
     best_f1 = -1.0
 
