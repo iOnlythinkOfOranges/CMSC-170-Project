@@ -1,34 +1,40 @@
 # Next Day Weather Predcition in the Philippines
+
 ## Group BAWWL
 
 ### Problem
+
 Can we predict whether it will rain the next day (more than 1 mm) at selected locations across the Philippines, using the past 5 days of weather data?
 
 ### Dataset
-[NASA Power Dataset (Energy Resources)](https://power.larc.nasa.gov/data-access-viewer/)
+
+[NASA Power Dataset (Energy Resources)](https://power.larc.nasa.gov/data-access-viewer/)  
 | Parameter | What it does |
 | :---: | :---: |
 | Temperature at 2 meters | Average air temperature; primary weather indicator |
-| Maximum temperature at 2 meters |  Captures daytime heat  |
-| Minimum temperature at 2 meters |  Captures nighttime cooling  |
+| Maximum temperature at 2 meters | Captures daytime heat |
+| Minimum temperature at 2 meters | Captures nighttime cooling |
 | Corrected precipitation | Daily rainfall; essential for rain prediction |
-|  Relative humidity at 2 meters  | Measures atmospheric moisture |
-| Surface pressure | Helps identify changing atmospheric conditions  |
-|  Wind speed at 10 meters  | Measures wind strength |
-| Wind direction at 10 meters |  Captures wind patterns and seasonal circulation  |
+| Relative humidity at 2 meters | Measures atmospheric moisture |
+| Surface pressure | Helps identify changing atmospheric conditions |
+| Wind speed at 10 meters | Measures wind strength |
+| Wind direction at 10 meters | Captures wind patterns and seasonal circulation |
 | Dew point at 2 meters | Indicates atmospheric moisture and potential condensation |
-| All-sky surface shortwave downward irradiance  | Measures incoming solar energy, affected by clouds  |
+| All-sky surface shortwave downward irradiance | Measures incoming solar energy, affected by clouds |
 
 ### Methods
+
 1. Logisitc Regression - a simple and interpretable baseline model that estimates the probability of rainfall from weather features.
 2. K-Nearest Neighbors - predicts rain by finding the past days whose recent weather looks most like the last `n` days and classifying them.
 3. Gaussian Naive Bayes - calculates the likelihood of observing today's weather readings under "Rain" versus "Dry" conditions.
 
 ### Setup
+
 The NASA Power Dataset is split chronologically as follows: 70% train, 15% validation, and 15% test split.
 
 ### Results
-``` bash
+
+```bash
 =================================================================
 CMSC 170 - Group BAWWL: Weather Pipeline
 =================================================================
@@ -227,5 +233,7 @@ All figures generated successfully in: c:\Users\orij\School\3Y1S\170\CMSC-170-Pr
 ![Predicted rain probabilities and observed rainy days in Metro Manila](figures/timeseries_metro_manila.png)
 
 ### Discussion
+
 ### Conclusion
+
 ### References
