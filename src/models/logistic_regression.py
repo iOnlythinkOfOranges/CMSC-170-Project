@@ -24,8 +24,8 @@
 import numpy as np  # arrays and basic math
 
 # TUNABLE VALUES
-LEARNING_RATE = 0.1   # how big each nudge is
-N_ITERATIONS = 500    # how many times we repeat the nudging
+LEARNING_RATE = 0.5   # how big each nudge is
+N_ITERATIONS = 2000    # how many times we repeat the nudging
 
 
 class LogisticRegression:

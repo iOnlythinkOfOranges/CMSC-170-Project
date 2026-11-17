@@ -7,7 +7,7 @@ from models.gaussian_naive_bayes import GaussianNaiveBayes
 from models.knn import predict_knn
 from models.logistic_regression import LogisticRegression
 from metrics import evaluate_predictions, find_best_threshold, roc_auc_score
-K_VALUE = 15   # KNN: number of neighbours (tune)
+K_VALUE = 151   # KNN: number of neighbours (tune)
 P_VALUE = 2    # KNN: distance type (2 = Euclidean)
 
 def run_gaussian_naive_bayes(preprocessed_data):

@@ -3,7 +3,7 @@ from data.preprocess import preprocess_location
 from comparison import run_compare
 START_DATE = "20000101"
 END_DATE = "20241231"
-WINDOW_SIZE = 5        # days of past weather per prediction (tune: 3, 5, 7)
+WINDOW_SIZE = 3        # days of past weather per prediction (tune: 3, 5, 7)
 RAIN_THRESHOLD = 1.0   # mm of rain tomorrow that counts as "rain" (definition, not tuned)
 
 def main():
