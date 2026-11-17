@@ -8,20 +8,20 @@ Can we predict whether it will rain the next day (more than 1 mm) at selected lo
 
 ### Dataset
 
-[NASA Power Dataset (Energy Resources)](https://power.larc.nasa.gov/data-access-viewer/)  
+[NASA Power Dataset (Energy Resources)](https://power.larc.nasa.gov/data-access-viewer/)
 
-| Parameter | What it does |
-| :---: | :---: |
-| Temperature at 2 meters | Average air temperature; primary weather indicator |
-| Maximum temperature at 2 meters | Captures daytime heat |
-| Minimum temperature at 2 meters | Captures nighttime cooling |
-| Corrected precipitation | Daily rainfall; essential for rain prediction |
-| Relative humidity at 2 meters | Measures atmospheric moisture |
-| Surface pressure | Helps identify changing atmospheric conditions |
-| Wind speed at 10 meters | Measures wind strength |
-| Wind direction at 10 meters | Captures wind patterns and seasonal circulation |
-| Dew point at 2 meters | Indicates atmospheric moisture and potential condensation |
-| All-sky surface shortwave downward irradiance | Measures incoming solar energy, affected by clouds |
+|                   Parameter                   |                       What it does                        |
+| :-------------------------------------------: | :-------------------------------------------------------: |
+|            Temperature at 2 meters            |    Average air temperature; primary weather indicator     |
+|        Maximum temperature at 2 meters        |                   Captures daytime heat                   |
+|        Minimum temperature at 2 meters        |                Captures nighttime cooling                 |
+|            Corrected precipitation            |       Daily rainfall; essential for rain prediction       |
+|         Relative humidity at 2 meters         |               Measures atmospheric moisture               |
+|               Surface pressure                |      Helps identify changing atmospheric conditions       |
+|            Wind speed at 10 meters            |                  Measures wind strength                   |
+|          Wind direction at 10 meters          |      Captures wind patterns and seasonal circulation      |
+|             Dew point at 2 meters             | Indicates atmospheric moisture and potential condensation |
+| All-sky surface shortwave downward irradiance |    Measures incoming solar energy, affected by clouds     |
 
 ### Methods
 
@@ -238,3 +238,17 @@ All figures generated successfully in: c:\Users\orij\School\3Y1S\170\CMSC-170-Pr
 ### Conclusion
 
 ### References
+
+- Patkar, U., Maske, S., Ahmad, S., Mengade, R., & Sadawarti, G. (2021). Weather prediction using machine learning. GIS Science Journal, 8(12), 118-125. [https\://www\.researchgate.net/publication/362517661_WEATHER_PREDICTION_USING_MACHINE_LEARNING](https://www.researchgate.net/publication/362517661_WEATHER_PREDICTION_USING_MACHINE_LEARNING)
+
+- Powers, D. M. W. (2011). Evaluation: From precision, recall and F-measure to ROC, informedness, markedness and correlation. _Journal of Machine Learning Technologies_, _2_(1), 37–63. [https\://www\.researchgate.net/publication/228529307](https://www.researchgate.net/publication/228529307)
+
+- J. I. N. Gojo Cruz, “Lab 04: Naïve Bayes Classifier,” laboratory handout, \[Institute of Computer Science, University of the Philippines Los Baños\], 2026\.
+
+- "Unfolding Naive Bayes from scratch: Part 2," Data Science Dojo. Accessed: Nov. 3, 2026\. \[Online\]. Available: [https\://datasciencedojo.com/blog/naive-bayes-from-scratch-part-2/](https://datasciencedojo.com/blog/naive-bayes-from-scratch-part-2/)
+
+- S. Baladram, "Gaussian Naive Bayes, explained: A visual guide with code examples for beginners," Towards Data Science, Oct. 11, 2024\. Accessed: Nov. 3, 2026\. \[Online\]. Available: [https\://towardsdatascience.com/gaussian-naive-bayes-explained-a-visual-guide-with-code-examples-for-beginners-04949cef383c](https://towardsdatascience.com/gaussian-naive-bayes-explained-a-visual-guide-with-code-examples-for-beginners-04949cef383c)
+
+- F. Lee, "What is logistic regression?," IBM, May 14, 2025. [Online]. Available: https://www.ibm.com/think/topics/logistic-regression. [Accessed: Nov. 10, 2026].
+
+- "Logistic regression in machine learning," GeeksforGeeks, Jun. 1, 2026. [Online]. Available: https://www.geeksforgeeks.org/machine-learning/understanding-logistic-regression/. [Accessed: Nov. 10, 2026].
