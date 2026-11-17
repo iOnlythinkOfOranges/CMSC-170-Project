@@ -9,6 +9,7 @@ Can we predict whether it will rain the next day (more than 1 mm) at selected lo
 ### Dataset
 
 [NASA Power Dataset (Energy Resources)](https://power.larc.nasa.gov/data-access-viewer/)  
+
 | Parameter | What it does |
 | :---: | :---: |
 | Temperature at 2 meters | Average air temperature; primary weather indicator |
