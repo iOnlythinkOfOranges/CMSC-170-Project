@@ -260,7 +260,7 @@ def plot_sample_timeseries(preprocessed_data, gnb_scores, knn_scores, lr_scores,
     if lr_scores and location in lr_scores:
         lr_p = lr_scores[location]["test_scores"][:days]
         ax.plot(x, lr_p, color=LR_COLOR, lw=2, marker="^", ms=4, label="Logistic Regression P(Rain)")
-    ax.axhline(0.5, color="red", linestyle=":", lw=1.2, label="0.5 Decision Boundary")
+    ax.axhline(0.5, color="red", linestyle=":", lw=1.2, label="0.50 Reference Line")
 
     # Format x-axis with date labels
     step = max(1, len(x) // 10)

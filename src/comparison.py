@@ -219,13 +219,21 @@ def evaluate_test_set(preprocessed_data, gnb_result, knn_result, lr_result):
     ]
 
     overall_rows = []
+    base_f1_list, base_acc_list = [], []
+    for location, data in preprocessed_data.items():
+        y_test = data["y_test"]
+        base = evaluate_predictions(y_test, [1] * len(y_test))
+        base_f1_list.append(base["f1"])
+        base_acc_list.append(base["accuracy"])
+
     for model_name, model_scores in model_specs:
         if not model_scores:
             continue
 
         print(f"\n[{model_name}]")
         print(f"  {'Location':16s} {'Thr':>5s} {'F1':>6s} {'Prec':>6s} {'Rec':>6s} {'Acc':>6s} "
-              f"{'AUC':>6s} | {'TP':>4s} {'FP':>4s} {'TN':>4s} {'FN':>4s}")
+              f"{'AUC':>6s} | {'AlwaysRain F1':>13s} {'AlwaysRain Acc':>14s} | "
+              f"{'TP':>4s} {'FP':>4s} {'TN':>4s} {'FN':>4s}")
 
         f1_list, prec_list, rec_list, acc_list, auc_list = [], [], [], [], []
         pooled_y, pooled_pred, pooled_scores = [], [], []
@@ -242,9 +250,11 @@ def evaluate_test_set(preprocessed_data, gnb_result, knn_result, lr_result):
             test_pred = [1 if s >= best_thr else 0 for s in test_scores]
             r = evaluate_predictions(y_test, test_pred)
             auc = roc_auc_score(y_test, test_scores)
+            base = evaluate_predictions(y_test, [1] * len(y_test))
 
             print(f"  {location:16s} {best_thr:5.2f} {r['f1']:6.3f} {r['precision']:6.3f} "
                   f"{r['recall']:6.3f} {r['accuracy']:6.3f} {auc:6.3f} | "
+                  f"{base['f1']:13.3f} {base['accuracy']:14.3f} | "
                   f"{r['tp']:4d} {r['fp']:4d} {r['tn']:4d} {r['fn']:4d}")
 
             f1_list.append(r["f1"])
@@ -262,16 +272,22 @@ def evaluate_test_set(preprocessed_data, gnb_result, knn_result, lr_result):
             macro_rec = sum(rec_list) / len(rec_list)
             macro_acc = sum(acc_list) / len(acc_list)
             macro_auc = sum(auc_list) / len(auc_list)
+            macro_base_f1 = sum(base_f1_list) / len(base_f1_list)
+            macro_base_acc = sum(base_acc_list) / len(base_acc_list)
             pooled_r = evaluate_predictions(pooled_y, pooled_pred)
             pooled_auc = roc_auc_score(pooled_y, pooled_scores)
             print(f"  {'Macro Average':16s} {'-':>5s} {macro_f1:6.3f} {macro_prec:6.3f} "
                   f"{macro_rec:6.3f} {macro_acc:6.3f} {macro_auc:6.3f} | "
+                  f"{macro_base_f1:13.3f} {macro_base_acc:14.3f} | "
                   f"{pooled_r['tp']:4d} {pooled_r['fp']:4d} {pooled_r['tn']:4d} {pooled_r['fn']:4d}")
             overall_rows.append((model_name, macro_f1, macro_prec, macro_rec, macro_acc, macro_auc, pooled_r, pooled_auc))
 
     if overall_rows:
+        macro_base_f1 = sum(base_f1_list) / len(base_f1_list)
+        macro_base_acc = sum(base_acc_list) / len(base_acc_list)
         print("\n[Overall Test Set Summary Across All 6 Locations (Macro Average)]")
         print(f"  {'Model':28s} {'F1':>6s} {'Prec':>6s} {'Rec':>6s} {'Acc':>6s} {'AUC':>6s}")
+        print(f"  {'AlwaysRain Baseline':28s} {macro_base_f1:6.3f} {macro_base_acc:6.3f} {'1.000':>6s} {macro_base_acc:6.3f} {'0.500':>6s}")
         for model_name, mf1, mprec, mrec, macc, mauc, _, _ in overall_rows:
             print(f"  {model_name:28s} {mf1:6.3f} {mprec:6.3f} {mrec:6.3f} {macc:6.3f} {mauc:6.3f}")
 
