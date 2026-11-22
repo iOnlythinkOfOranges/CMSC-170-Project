@@ -4,7 +4,11 @@
 
 **Members:** Charleen Airam Casal · Jan Vincent Gloria · Lance Perus · Max Ivan Sangkal
 
-**Links:** [GitHub Repository](https://github.com/iOnlythinkOfOranges/CMSC-170-Project) · [Live Project Page](https://ionlythinkoforanges.github.io/CMSC-170-Project/)
+**Links:**
+
+- [GitHub Repository](https://github.com/iOnlythinkOfOranges/CMSC-170-Project)
+- [Project Page](https://ionlythinkoforanges.github.io/CMSC-170-Project/)
+- [Presentation Slides](https://canva.link/0eubreeu0j5mk4w)
 
 ---
 
@@ -31,18 +35,18 @@ We use 25 years of daily meteorological observations (`January 1, 2000` to `Dece
 
 Each daily record includes 10 raw meteorological parameters from NASA POWER, which are transformed into **11 daily numerical features**:
 
-| NASA POWER Code | Parameter | Role in Rainfall Prediction |
-| :--- | :--- | :--- |
-| `T2M` | Temperature at 2 meters (°C) | Average daily air temperature; primary surface weather indicator |
-| `T2M_MAX` | Maximum temperature at 2 meters (°C) | Captures daytime heating and convective potential |
-| `T2M_MIN` | Minimum temperature at 2 meters (°C) | Captures nighttime cooling and cloud-cover insulation |
-| `PRECTOTCORR` | Corrected precipitation (mm/day) | Daily rainfall total; captures multi-day rain persistence |
-| `RH2M` | Relative humidity at 2 meters (%) | Measures near-surface atmospheric moisture saturation |
-| `PS` | Surface pressure (kPa) | Identifies low-pressure disturbances and frontal systems |
-| `WS10M` | Wind speed at 10 meters (m/s) | Measures wind strength associated with monsoons and storms |
-| `WD10M` | Wind direction at 10 meters (°) | Decomposed into `WD10M_sin` and `WD10M_cos` to preserve circular continuity (`0°` vs. `360°`) |
-| `T2MDEW` | Dew point at 2 meters (°C) | Indicates absolute moisture content and condensation potential |
-| `ALLSKY_SFC_SW_DWN` | All-sky surface shortwave downward irradiance | Measures incoming solar energy attenuated by cloud cover |
+| NASA POWER Code     | Parameter                                     | Role in Rainfall Prediction                                                                   |
+| :------------------ | :-------------------------------------------- | :-------------------------------------------------------------------------------------------- |
+| `T2M`               | Temperature at 2 meters (°C)                  | Average daily air temperature; primary surface weather indicator                              |
+| `T2M_MAX`           | Maximum temperature at 2 meters (°C)          | Captures daytime heating and convective potential                                             |
+| `T2M_MIN`           | Minimum temperature at 2 meters (°C)          | Captures nighttime cooling and cloud-cover insulation                                         |
+| `PRECTOTCORR`       | Corrected precipitation (mm/day)              | Daily rainfall total; captures multi-day rain persistence                                     |
+| `RH2M`              | Relative humidity at 2 meters (%)             | Measures near-surface atmospheric moisture saturation                                         |
+| `PS`                | Surface pressure (kPa)                        | Identifies low-pressure disturbances and frontal systems                                      |
+| `WS10M`             | Wind speed at 10 meters (m/s)                 | Measures wind strength associated with monsoons and storms                                    |
+| `WD10M`             | Wind direction at 10 meters (°)               | Decomposed into `WD10M_sin` and `WD10M_cos` to preserve circular continuity (`0°` vs. `360°`) |
+| `T2MDEW`            | Dew point at 2 meters (°C)                    | Indicates absolute moisture content and condensation potential                                |
+| `ALLSKY_SFC_SW_DWN` | All-sky surface shortwave downward irradiance | Measures incoming solar energy attenuated by cloud cover                                      |
 
 #### Preprocessing Pipeline
 
@@ -68,17 +72,17 @@ All three classification models and evaluation metrics were implemented from scr
 
 We train one independent model per location and tune hyperparameters and decision thresholds exclusively on the **validation set** (`src/tune.py`) before evaluating once on the held-out **test set** (`src/main.py`):
 
-| Setting | Value |
-| :--- | :--- |
-| **Lookback window** | `3 days`, with 11 features per day (`33 features` per sample) |
-| **Rain event definition** | Next-day precipitation `> 1.0 mm` |
-| **Chronological data split** | `70%` training (`6,390`), `15%` validation (`1,369`), `15%` test (`1,370`) per location |
-| **Feature scaling** | Per-location Z-score standardization using training mean and standard deviation |
-| **Gaussian Naive Bayes** | Variance smoothing `1e-9` |
-| **K-Nearest Neighbors** | `k = 151` neighbors, Euclidean distance (`p = 2`), inverse-distance weighted |
-| **Logistic Regression** | Learning rate `0.5`, `2,000` gradient descent iterations |
-| **Decision threshold** | Per model and location, tuned to maximize validation F1 over `0.02` to `0.98` (step `0.02`) |
-| **Baseline comparison** | `AlwaysRain` majority-class baseline (predicts rain every day; `ROC-AUC = 0.500`) |
+| Setting                      | Value                                                                                       |
+| :--------------------------- | :------------------------------------------------------------------------------------------ |
+| **Lookback window**          | `3 days`, with 11 features per day (`33 features` per sample)                               |
+| **Rain event definition**    | Next-day precipitation `> 1.0 mm`                                                           |
+| **Chronological data split** | `70%` training (`6,390`), `15%` validation (`1,369`), `15%` test (`1,370`) per location     |
+| **Feature scaling**          | Per-location Z-score standardization using training mean and standard deviation             |
+| **Gaussian Naive Bayes**     | Variance smoothing `1e-9`                                                                   |
+| **K-Nearest Neighbors**      | `k = 151` neighbors, Euclidean distance (`p = 2`), inverse-distance weighted                |
+| **Logistic Regression**      | Learning rate `0.5`, `2,000` gradient descent iterations                                    |
+| **Decision threshold**       | Per model and location, tuned to maximize validation F1 over `0.02` to `0.98` (step `0.02`) |
+| **Baseline comparison**      | `AlwaysRain` majority-class baseline (predicts rain every day; `ROC-AUC = 0.500`)           |
 
 ---
 
@@ -86,24 +90,24 @@ We train one independent model per location and tune hyperparameters and decisio
 
 #### Overall Held-Out Test Set Summary (Macro Average Across All 6 Locations)
 
-| Model | Test F1 | Test Precision | Test Recall | Test Accuracy | Test ROC-AUC | Pooled TP | Pooled FP | Pooled TN | Pooled FN |
-| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
-| **AlwaysRain Baseline** | 0.867 | 0.768 | 1.000 | 0.768 | 0.500 | 6,309 | 1,911 | 0 | 0 |
-| **Gaussian Naive Bayes** | 0.873 | **0.852** | 0.899 | 0.801 | 0.786 | 5,673 | **999** | **912** | 636 |
-| **K-Nearest Neighbors (`k=151`)** | 0.886 | 0.814 | **0.975** | 0.811 | 0.796 | **6,162** | 1,406 | 505 | **147** |
-| **Logistic Regression** | **0.896** | 0.835 | 0.968 | **0.830** | **0.844** | 6,117 | 1,206 | 705 | 192 |
+| Model                             |  Test F1  | Test Precision | Test Recall | Test Accuracy | Test ROC-AUC | Pooled TP | Pooled FP | Pooled TN | Pooled FN |
+| :-------------------------------- | :-------: | :------------: | :---------: | :-----------: | :----------: | :-------: | :-------: | :-------: | :-------: |
+| **AlwaysRain Baseline**           |   0.867   |     0.768      |    1.000    |     0.768     |    0.500     |   6,309   |   1,911   |     0     |     0     |
+| **Gaussian Naive Bayes**          |   0.873   |   **0.852**    |    0.899    |     0.801     |    0.786     |   5,673   |  **999**  |  **912**  |    636    |
+| **K-Nearest Neighbors (`k=151`)** |   0.886   |     0.814      |  **0.975**  |     0.811     |    0.796     | **6,162** |   1,406   |    505    |  **147**  |
+| **Logistic Regression**           | **0.896** |     0.835      |    0.968    |   **0.830**   |  **0.844**   |   6,117   |   1,206   |    705    |    192    |
 
 #### Held-Out Test Set Performance by Location
 
-| Location | Test Rain Rate | AlwaysRain (F1 / Acc) | Gaussian Naive Bayes (Thr / F1 / Acc / AUC) | KNN `k=151` (Thr / F1 / Acc / AUC) | Logistic Regression (Thr / F1 / Acc / AUC) |
-| :--- | :---: | :---: | :---: | :---: | :---: |
-| **Metro Manila** | 81.7% | 0.899 / 0.817 | 0.02 / 0.889 / 0.824 / 0.819 | 0.40 / 0.910 / 0.842 / 0.843 | 0.36 / **0.920** / **0.860** / **0.888** |
-| **Cebu City** | 72.6% | 0.841 / 0.726 | 0.02 / 0.858 / 0.776 / 0.753 | 0.34 / 0.855 / 0.758 / 0.793 | 0.48 / **0.864** / **0.786** / **0.823** |
-| **Davao City** | 77.3% | 0.872 / 0.773 | 0.02 / 0.872 / 0.781 / 0.729 | 0.38 / 0.874 / 0.779 / 0.702 | 0.38 / **0.882** / **0.796** / **0.760** |
-| **Legazpi City** | 87.3% | 0.932 / 0.873 | 0.02 / 0.903 / 0.834 / 0.799 | 0.42 / **0.934** / **0.877** / 0.803 | 0.32 / **0.934** / **0.877** / **0.854** |
-| **Baguio** | 64.2% | 0.782 / 0.642 | 0.02 / 0.856 / 0.812 / 0.889 | 0.38 / 0.864 / 0.813 / 0.894 | 0.40 / **0.888** / **0.849** / **0.921** |
-| **Zamboanga City** | 77.5% | 0.873 / 0.775 | 0.02 / 0.861 / 0.780 / 0.725 | 0.48 / 0.882 / 0.797 / 0.743 | 0.36 / **0.889** / **0.811** / **0.818** |
-| **Macro Average** | **76.8%** | **0.867 / 0.768** | **- / 0.873 / 0.801 / 0.786** | **- / 0.886 / 0.811 / 0.796** | **- / 0.896 / 0.830 / 0.844** |
+| Location           | Test Rain Rate | AlwaysRain (F1 / Acc) | Gaussian Naive Bayes (Thr / F1 / Acc / AUC) |  KNN `k=151` (Thr / F1 / Acc / AUC)  | Logistic Regression (Thr / F1 / Acc / AUC) |
+| :----------------- | :------------: | :-------------------: | :-----------------------------------------: | :----------------------------------: | :----------------------------------------: |
+| **Metro Manila**   |     81.7%      |     0.899 / 0.817     |        0.02 / 0.889 / 0.824 / 0.819         |     0.40 / 0.910 / 0.842 / 0.843     |  0.36 / **0.920** / **0.860** / **0.888**  |
+| **Cebu City**      |     72.6%      |     0.841 / 0.726     |        0.02 / 0.858 / 0.776 / 0.753         |     0.34 / 0.855 / 0.758 / 0.793     |  0.48 / **0.864** / **0.786** / **0.823**  |
+| **Davao City**     |     77.3%      |     0.872 / 0.773     |        0.02 / 0.872 / 0.781 / 0.729         |     0.38 / 0.874 / 0.779 / 0.702     |  0.38 / **0.882** / **0.796** / **0.760**  |
+| **Legazpi City**   |     87.3%      |     0.932 / 0.873     |        0.02 / 0.903 / 0.834 / 0.799         | 0.42 / **0.934** / **0.877** / 0.803 |  0.32 / **0.934** / **0.877** / **0.854**  |
+| **Baguio**         |     64.2%      |     0.782 / 0.642     |        0.02 / 0.856 / 0.812 / 0.889         |     0.38 / 0.864 / 0.813 / 0.894     |  0.40 / **0.888** / **0.849** / **0.921**  |
+| **Zamboanga City** |     77.5%      |     0.873 / 0.775     |        0.02 / 0.861 / 0.780 / 0.725         |     0.48 / 0.882 / 0.797 / 0.743     |  0.36 / **0.889** / **0.811** / **0.818**  |
+| **Macro Average**  |   **76.8%**    |   **0.867 / 0.768**   |        **- / 0.873 / 0.801 / 0.786**        |    **- / 0.886 / 0.811 / 0.796**     |       **- / 0.896 / 0.830 / 0.844**        |
 
 #### Visualizations
 
@@ -333,6 +337,7 @@ Final Model Comparison on Held-Out TEST Set (threshold tuned on validation F1)
 #### 2. Class Imbalance and Comparison with the `AlwaysRain` Baseline
 
 Across the six tropical locations, rainy days (`> 1.0 mm`) account for `64.2%` (**Baguio**) to `87.3%` (**Legazpi City**) of the test set (`76.8%` on average). As a result:
+
 - A naive **`AlwaysRain` baseline** that predicts rain every single day achieves a macro F1 of `0.867` and Accuracy of `0.768` (`0.932` F1 in Legazpi City), despite having zero discriminative skill (`ROC-AUC = 0.500` and `0` True Negatives).
 - Tuning decision thresholds to maximize F1 on rain-heavy locations naturally selects lower probability cutoffs (`0.32–0.48` for Logistic Regression and KNN), trading lower dry-day specificity for very high rain recall (`0.968–0.975`).
 - The true predictive value of the models is clearest on **threshold-independent ROC-AUC** (`0.844` for Logistic Regression vs. `0.500` for `AlwaysRain`) and in **Baguio**, which has the most balanced dry/wet seasonal split (`64.2%` test rain): in Baguio, Logistic Regression reaches **`0.888` F1**, **`0.849` Accuracy**, and **`0.921` ROC-AUC**, outperforming `AlwaysRain` by **`+10.6` F1 points** and **`+20.7` percentage points in Accuracy**.
@@ -340,7 +345,7 @@ Across the six tropical locations, rainy days (`> 1.0 mm`) account for `64.2%` (
 #### 3. Limitations and Possible Improvements
 
 - **Single-Point Daily Aggregates:** Each location is represented by a single grid coordinate's daily average/total, which cannot capture mesoscale spatial fronts, approaching typhoons outside the grid cell, or sub-daily convective storms. Adding neighboring grid cells or pressure-tendency features ($\Delta \text{PS}$ over 24 hours) could improve storm detection.
-- **Seasonality Features:** While a 3-day window captures current atmospheric state, adding cyclical day-of-year features ($\sin(2\pi \cdot \text{DOY}/365.25)$, $\cos(2\pi \cdot \text{DOY}/365.25)$) could explicitly encode the Philippine monsoon calendar (*Amihan* vs. *Habagat*).
+- **Seasonality Features:** While a 3-day window captures current atmospheric state, adding cyclical day-of-year features ($\sin(2\pi \cdot \text{DOY}/365.25)$, $\cos(2\pi \cdot \text{DOY}/365.25)$) could explicitly encode the Philippine monsoon calendar (_Amihan_ vs. _Habagat_).
 - **Thresholding Objective:** Maximizing F1 in rain-dominated climates produces a high false-positive rate on dry days. Depending on the user's application, tuning thresholds via Youden's $J$ statistic ($\text{TPR} - \text{FPR}$) or cost-sensitive thresholding would better balance dry-day and rainy-day accuracy.
 
 ---
@@ -376,10 +381,10 @@ After using these tools, the author(s) reviewed and edited the content as needed
 
 ### References
 
-- Patkar, U., Maske, S., Ahmad, S., Mengade, R., & Sadawarti, G. (2021). Weather prediction using machine learning. *GIS Science Journal*, 8(12), 118–125. [https://www.researchgate.net/publication/362517661_WEATHER_PREDICTION_USING_MACHINE_LEARNING](https://www.researchgate.net/publication/362517661_WEATHER_PREDICTION_USING_MACHINE_LEARNING)
-- Powers, D. M. W. (2011). Evaluation: From precision, recall and F-measure to ROC, informedness, markedness and correlation. *Journal of Machine Learning Technologies*, 2(1), 37–63. [https://www.researchgate.net/publication/228529307](https://www.researchgate.net/publication/228529307)
+- Patkar, U., Maske, S., Ahmad, S., Mengade, R., & Sadawarti, G. (2021). Weather prediction using machine learning. _GIS Science Journal_, 8(12), 118–125. [https://www.researchgate.net/publication/362517661_WEATHER_PREDICTION_USING_MACHINE_LEARNING](https://www.researchgate.net/publication/362517661_WEATHER_PREDICTION_USING_MACHINE_LEARNING)
+- Powers, D. M. W. (2011). Evaluation: From precision, recall and F-measure to ROC, informedness, markedness and correlation. _Journal of Machine Learning Technologies_, 2(1), 37–63. [https://www.researchgate.net/publication/228529307](https://www.researchgate.net/publication/228529307)
 - J. I. N. Gojo Cruz, "Lab 04: Naïve Bayes Classifier," laboratory handout, Institute of Computer Science, University of the Philippines Los Baños, 2026.
-- "Unfolding Naive Bayes from scratch: Part 2," *Data Science Dojo*. Accessed: Nov. 3, 2026. [Online]. Available: [https://datasciencedojo.com/blog/naive-bayes-from-scratch-part-2/](https://datasciencedojo.com/blog/naive-bayes-from-scratch-part-2/)
-- S. Baladram, "Gaussian Naive Bayes, explained: A visual guide with code examples for beginners," *Towards Data Science*, Oct. 11, 2024. Accessed: Nov. 3, 2026. [Online]. Available: [https://towardsdatascience.com/gaussian-naive-bayes-explained-a-visual-guide-with-code-examples-for-beginners-04949cef383c](https://towardsdatascience.com/gaussian-naive-bayes-explained-a-visual-guide-with-code-examples-for-beginners-04949cef383c)
-- F. Lee, "What is logistic regression?," *IBM*, May 14, 2025. [Online]. Available: [https://www.ibm.com/think/topics/logistic-regression](https://www.ibm.com/think/topics/logistic-regression). [Accessed: Nov. 10, 2026].
-- "Logistic regression in machine learning," *GeeksforGeeks*, Jun. 1, 2026. [Online]. Available: [https://www.geeksforgeeks.org/machine-learning/understanding-logistic-regression/](https://www.geeksforgeeks.org/machine-learning/understanding-logistic-regression/). [Accessed: Nov. 10, 2026].
+- "Unfolding Naive Bayes from scratch: Part 2," _Data Science Dojo_. Accessed: Nov. 3, 2026. [Online]. Available: [https://datasciencedojo.com/blog/naive-bayes-from-scratch-part-2/](https://datasciencedojo.com/blog/naive-bayes-from-scratch-part-2/)
+- S. Baladram, "Gaussian Naive Bayes, explained: A visual guide with code examples for beginners," _Towards Data Science_, Oct. 11, 2024. Accessed: Nov. 3, 2026. [Online]. Available: [https://towardsdatascience.com/gaussian-naive-bayes-explained-a-visual-guide-with-code-examples-for-beginners-04949cef383c](https://towardsdatascience.com/gaussian-naive-bayes-explained-a-visual-guide-with-code-examples-for-beginners-04949cef383c)
+- F. Lee, "What is logistic regression?," _IBM_, May 14, 2025. [Online]. Available: [https://www.ibm.com/think/topics/logistic-regression](https://www.ibm.com/think/topics/logistic-regression). [Accessed: Nov. 10, 2026].
+- "Logistic regression in machine learning," _GeeksforGeeks_, Jun. 1, 2026. [Online]. Available: [https://www.geeksforgeeks.org/machine-learning/understanding-logistic-regression/](https://www.geeksforgeeks.org/machine-learning/understanding-logistic-regression/). [Accessed: Nov. 10, 2026].
