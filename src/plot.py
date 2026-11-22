@@ -105,9 +105,8 @@ def plot_metrics_comparison(preprocessed_data, gnb_scores, knn_scores, lr_scores
         gnb_vals["Precision"].append(gnb_res["precision"])
         gnb_vals["Recall"].append(gnb_res["recall"])
 
-        # KNN evaluation with tuned threshold from val
-        knn_val = knn_scores[loc]["val_scores"]
-        knn_thr, _ = find_best_threshold(y_val, knn_val)
+        # KNN evaluation (threshold tuned on validation, same as GNB and LR)
+        knn_thr, _ = find_best_threshold(y_val, knn_scores[loc]["val_scores"])
         knn_pred = [1 if s >= knn_thr else 0 for s in knn_scores[loc]["test_scores"]]
         knn_res = evaluate_predictions(y_test, knn_pred)
 
@@ -139,7 +138,7 @@ def plot_metrics_comparison(preprocessed_data, gnb_scores, knn_scores, lr_scores
         ax = axes[idx]
         bar_groups = [
             ax.bar(gnb_x, gnb_vals[metric], width, label="Gaussian Naive Bayes", color="#2b5c8f"),
-            ax.bar(knn_x, knn_vals[metric], width, label="KNN (k=15)", color="#e65c00"),
+            ax.bar(knn_x, knn_vals[metric], width, label="KNN", color="#e65c00"),
         ]
         if lr_positions:
             bar_groups.append(ax.bar(
@@ -216,7 +215,7 @@ def plot_calibration_curves(preprocessed_data, gnb_scores, knn_scores, lr_scores
     fig, ax = plt.subplots(figsize=(8, 7))
     ax.plot([0, 1], [0, 1], "k--", lw=1.5, label="Perfect Calibration (y = x)")
     ax.plot(gnb_x, gnb_y_calib, "s-", color="#2b5c8f", lw=2, ms=6, label="Gaussian Naive Bayes")
-    ax.plot(knn_x, knn_y_calib, "o-", color="#e65c00", lw=2, ms=6, label="KNN (k=15)")
+    ax.plot(knn_x, knn_y_calib, "o-", color="#e65c00", lw=2, ms=6, label="KNN")
     if all_lr:
         lr_x, lr_y_calib, _ = compute_calibration(np.array(all_lr), np.array(all_lr_y))
         ax.plot(lr_x, lr_y_calib, "^-", color=LR_COLOR, lw=2, ms=6, label="Logistic Regression")

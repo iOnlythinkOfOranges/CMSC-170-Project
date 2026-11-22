@@ -7,6 +7,8 @@ from models.gaussian_naive_bayes import GaussianNaiveBayes
 from models.knn import predict_knn
 from models.logistic_regression import LogisticRegression
 from metrics import evaluate_predictions, find_best_threshold, roc_auc_score
+K_VALUE = 151   # KNN: number of neighbours (tune)
+P_VALUE = 2    # KNN: distance type (2 = Euclidean)
 
 def run_gaussian_naive_bayes(preprocessed_data):
     """Return validation and test rain scores by location and print validation metrics."""
@@ -85,8 +87,7 @@ def run_knn(preprocessed_data):
     print("K-Nearest Neighbors: initial results (VALIDATION set)")
     print("=" * 78)
 
-    k_value = 15
-    p_value = 2
+    k_value, p_value = K_VALUE, P_VALUE
 
     scores_by_location = {}
     for location, city_data in preprocessed_data.items():
@@ -213,7 +214,7 @@ def evaluate_test_set(preprocessed_data, gnb_result, knn_result, lr_result):
 
     model_specs = [
         ("Gaussian Naive Bayes", gnb_result),
-        ("K-Nearest Neighbors (k=15)", knn_result),
+        (f"K-Nearest Neighbors (k={K_VALUE})", knn_result),
         ("Logistic Regression", lr_result),
     ]
 

@@ -23,9 +23,13 @@
 
 import numpy as np  # arrays and basic math
 
+# TUNABLE VALUES
+LEARNING_RATE = 0.5   # how big each nudge is
+N_ITERATIONS = 2000    # how many times we repeat the nudging
+
 
 class LogisticRegression:
-    def __init__(self, learning_rate=0.1, n_iterations=500):
+    def __init__(self, learning_rate=LEARNING_RATE, n_iterations=N_ITERATIONS):
         # how big each nudge is, and how many times we repeat the nudging
         self.learning_rate = learning_rate
         self.n_iterations = n_iterations
