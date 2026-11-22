@@ -1,229 +1,111 @@
-# Next Day Weather Predcition in the Philippines
+# Next-Day Rainfall Prediction in the Philippines
 
-## Group BAWWL
+## CMSC 170 · Group BAWWL
 
-### Problem
+**Members:** Charleen Airam Casal · Jan Vincent Gloria · Lance Perus · Max Ivan Sangkal
 
-Can we predict whether it will rain the next day (more than 1 mm) at selected locations across the Philippines, using the past 5 days of weather data?
+**Links:** [GitHub Repository](https://github.com/iOnlythinkOfOranges/CMSC-170-Project) · [Live Project Page](https://ionlythinkoforanges.github.io/CMSC-170-Project/)
 
-### Dataset
+---
 
-[NASA Power Dataset (Energy Resources)](https://power.larc.nasa.gov/data-access-viewer/)
+### Problem & Motivation
 
-|                   Parameter                   |                       What it does                        |
-| :-------------------------------------------: | :-------------------------------------------------------: |
-|            Temperature at 2 meters            |    Average air temperature; primary weather indicator     |
-|        Maximum temperature at 2 meters        |                   Captures daytime heat                   |
-|        Minimum temperature at 2 meters        |                Captures nighttime cooling                 |
-|            Corrected precipitation            |       Daily rainfall; essential for rain prediction       |
-|         Relative humidity at 2 meters         |               Measures atmospheric moisture               |
-|               Surface pressure                |      Helps identify changing atmospheric conditions       |
-|            Wind speed at 10 meters            |                  Measures wind strength                   |
-|          Wind direction at 10 meters          |      Captures wind patterns and seasonal circulation      |
-|             Dew point at 2 meters             | Indicates atmospheric moisture and potential condensation |
-| All-sky surface shortwave downward irradiance |    Measures incoming solar energy, affected by clouds     |
+Can we predict whether it will rain the next day (more than `1.0 mm` of precipitation) across six climatically distinct locations in the Philippines using the previous **3 days** of daily weather observations?
+
+Rainfall forecasting in the Philippines is critical for agriculture, flood preparedness, commuting, and disaster risk reduction. Because the archipelago spans several climate regimes—from the distinct dry and wet seasons of Western Luzon (**Metro Manila** and **Baguio**) to areas with no pronounced dry season and heavy year-round rainfall (**Legazpi City** and **Davao City**), as well as central and southern coastal regions (**Cebu City** and **Zamboanga City**)—a useful model must generalize across diverse local rainfall distributions. In this project, we implement and compare three classic machine learning classifiers **from scratch**—**Gaussian Naive Bayes**, **K-Nearest Neighbors (KNN)**, and **Logistic Regression**—to evaluate how well recent multi-day surface weather patterns predict next-day rainfall.
+
+---
+
+### Dataset & Preprocessing
+
+We use 25 years of daily meteorological observations (`January 1, 2000` to `December 31, 2024`, **9,132 daily records per location**; **54,792 records total**) retrieved from the [NASA POWER Daily API (Agroclimatology Community)](https://power.larc.nasa.gov/data-access-viewer/) for six Philippine locations:
+
+- **Metro Manila** (`14.5995° N, 120.9842° E`)
+- **Cebu City** (`10.3157° N, 123.8854° E`)
+- **Davao City** (`7.1907° N, 125.4553° E`)
+- **Legazpi City** (`13.1391° N, 123.7438° E`)
+- **Baguio** (`16.4023° N, 120.5960° E`)
+- **Zamboanga City** (`6.9214° N, 122.0790° E`)
+
+#### Daily Weather Parameters
+
+Each daily record includes 10 raw meteorological parameters from NASA POWER, which are transformed into **11 daily numerical features**:
+
+| NASA POWER Code | Parameter | Role in Rainfall Prediction |
+| :--- | :--- | :--- |
+| `T2M` | Temperature at 2 meters (°C) | Average daily air temperature; primary surface weather indicator |
+| `T2M_MAX` | Maximum temperature at 2 meters (°C) | Captures daytime heating and convective potential |
+| `T2M_MIN` | Minimum temperature at 2 meters (°C) | Captures nighttime cooling and cloud-cover insulation |
+| `PRECTOTCORR` | Corrected precipitation (mm/day) | Daily rainfall total; captures multi-day rain persistence |
+| `RH2M` | Relative humidity at 2 meters (%) | Measures near-surface atmospheric moisture saturation |
+| `PS` | Surface pressure (kPa) | Identifies low-pressure disturbances and frontal systems |
+| `WS10M` | Wind speed at 10 meters (m/s) | Measures wind strength associated with monsoons and storms |
+| `WD10M` | Wind direction at 10 meters (°) | Decomposed into `WD10M_sin` and `WD10M_cos` to preserve circular continuity (`0°` vs. `360°`) |
+| `T2MDEW` | Dew point at 2 meters (°C) | Indicates absolute moisture content and condensation potential |
+| `ALLSKY_SFC_SW_DWN` | All-sky surface shortwave downward irradiance | Measures incoming solar energy attenuated by cloud cover |
+
+#### Preprocessing Pipeline
+
+1. **Missing-Value Filtering:** Any daily record containing the NASA POWER missing-value sentinel (`-999`) is excluded before windowing. All 6 CSV files in `data/raw/` have 0 missing values across all 9,132 days.
+2. **Circular Wind Encoding:** Wind direction $\theta \in [0^\circ, 360^\circ]$ is mapped to $\sin(2\pi \theta / 360^\circ)$ and $\cos(2\pi \theta / 360^\circ)$, expanding the 10 raw parameters into 11 daily features.
+3. **Sliding-Window Construction (`WINDOW_SIZE = 3`):** Each sample concatenates the 11 daily features from days $t-2, t-1, t$ into a **33-feature vector** to predict binary rainfall on day $t+1$ ($1$ if `PRECTOTCORR` $> 1.0\text{ mm}$, $0$ otherwise), yielding `9,129` windowed samples per location.
+4. **Chronological Train / Validation / Test Split (`70% / 15% / 15%`):** To prevent temporal look-ahead leakage, each location's timeline is split strictly in date order into **6,390 training**, **1,369 validation**, and **1,370 test** samples.
+5. **Leakage-Free Z-Score Standardization:** For each location and each of the 33 features, the mean and standard deviation are computed **exclusively on the training split** and used to standardize the training, validation, and test splits.
+
+---
 
 ### Methods
 
-1. Logisitc Regression - a simple and interpretable baseline model that estimates the probability of rainfall from weather features.
-2. K-Nearest Neighbors - predicts rain by finding the past days whose recent weather looks most like the last `n` days and classifying them.
-3. Gaussian Naive Bayes - calculates the likelihood of observing today's weather readings under "Rain" versus "Dry" conditions.
+All three classification models and evaluation metrics were implemented from scratch using only the Python standard library and `numpy` array operations:
 
-### Setup
+1. **Gaussian Naive Bayes (`GaussianNaiveBayes`):** Models each of the 33 standardized features within class $c \in \{0, 1\}$ as an independent Gaussian distribution $\mathcal{N}(\mu_{c,j}, \sigma_{c,j}^2 + \epsilon)$ with variance smoothing $\epsilon = 10^{-9}$. Predictions are computed in log-space via log-sum-exp normalization to prevent numerical underflow when summing 33 log-likelihoods.
+2. **K-Nearest Neighbors (`predict_knn`):** A non-parametric classifier that computes the Minkowski distance ($p = 2$, Euclidean distance) between a query day's 33-feature vector and all 6,390 historical training windows in that location. Using the $k = 151$ nearest neighbors, it estimates rain probability via inverse-distance weighting $w_i = 1 / (d_i + 10^{-8})$.
+3. **Logistic Regression (`LogisticRegression`):** A linear probabilistic classifier that estimates $P(\text{Rain} \mid \mathbf{x}) = \sigma(\mathbf{x}^\top \mathbf{w} + b)$, where $\sigma(z) = 1 / (1 + e^{-z})$ is clipped to $[-500, 500]$ for numerical stability. Parameters $\mathbf{w}$ and $b$ are trained via full-batch gradient descent on binary cross-entropy loss with learning rate $\alpha = 0.5$ for $2,000$ iterations.
 
-The NASA Power Dataset is split chronologically as follows: 70% train, 15% validation, and 15% test split.
+---
+
+### Experimental Setup & Hyperparameter Tuning
+
+We train one independent model per location and tune hyperparameters and decision thresholds exclusively on the **validation set** (`src/tune.py`) before evaluating once on the held-out **test set** (`src/main.py`):
+
+| Setting | Value |
+| :--- | :--- |
+| **Lookback window** | `3 days`, with 11 features per day (`33 features` per sample) |
+| **Rain event definition** | Next-day precipitation `> 1.0 mm` |
+| **Chronological data split** | `70%` training (`6,390`), `15%` validation (`1,369`), `15%` test (`1,370`) per location |
+| **Feature scaling** | Per-location Z-score standardization using training mean and standard deviation |
+| **Gaussian Naive Bayes** | Variance smoothing `1e-9` |
+| **K-Nearest Neighbors** | `k = 151` neighbors, Euclidean distance (`p = 2`), inverse-distance weighted |
+| **Logistic Regression** | Learning rate `0.5`, `2,000` gradient descent iterations |
+| **Decision threshold** | Per model and location, tuned to maximize validation F1 over `0.02` to `0.98` (step `0.02`) |
+| **Baseline comparison** | `AlwaysRain` majority-class baseline (predicts rain every day; `ROC-AUC = 0.500`) |
+
+---
 
 ### Results
 
-```bash
-=================================================================
-CMSC 170 - Group BAWWL: Weather Pipeline
-=================================================================
+#### Overall Held-Out Test Set Summary (Macro Average Across All 6 Locations)
 
-Processing Metro Manila...
-Loaded 9132 daily records for 'Metro Manila' from c:\Users\orij\School\3Y1S\170\CMSC-170-Project\data\raw\metro_manila.csv
-  Train: 6388 samples | Val: 1369 | Test: 1370
-  Features per sample: 55 (5 days x 11 daily features)
+| Model | Test F1 | Test Precision | Test Recall | Test Accuracy | Test ROC-AUC | Pooled TP | Pooled FP | Pooled TN | Pooled FN |
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
+| **AlwaysRain Baseline** | 0.867 | 0.768 | 1.000 | 0.768 | 0.500 | 6,309 | 1,911 | 0 | 0 |
+| **Gaussian Naive Bayes** | 0.873 | **0.852** | 0.899 | 0.801 | 0.786 | 5,673 | **999** | **912** | 636 |
+| **K-Nearest Neighbors (`k=151`)** | 0.886 | 0.814 | **0.975** | 0.811 | 0.796 | **6,162** | 1,406 | 505 | **147** |
+| **Logistic Regression** | **0.896** | 0.835 | 0.968 | **0.830** | **0.844** | 6,117 | 1,206 | 705 | 192 |
 
-Processing Cebu City...
-Loaded 9132 daily records for 'Cebu City' from c:\Users\orij\School\3Y1S\170\CMSC-170-Project\data\raw\cebu.csv
-  Train: 6388 samples | Val: 1369 | Test: 1370
-  Features per sample: 55 (5 days x 11 daily features)
+#### Held-Out Test Set Performance by Location
 
-Processing Davao City...
-Loaded 9132 daily records for 'Davao City' from c:\Users\orij\School\3Y1S\170\CMSC-170-Project\data\raw\davao.csv
-  Train: 6388 samples | Val: 1369 | Test: 1370
-  Features per sample: 55 (5 days x 11 daily features)
+| Location | Test Rain Rate | AlwaysRain (F1 / Acc) | Gaussian Naive Bayes (Thr / F1 / Acc / AUC) | KNN `k=151` (Thr / F1 / Acc / AUC) | Logistic Regression (Thr / F1 / Acc / AUC) |
+| :--- | :---: | :---: | :---: | :---: | :---: |
+| **Metro Manila** | 81.7% | 0.899 / 0.817 | 0.02 / 0.889 / 0.824 / 0.819 | 0.40 / 0.910 / 0.842 / 0.843 | 0.36 / **0.920** / **0.860** / **0.888** |
+| **Cebu City** | 72.6% | 0.841 / 0.726 | 0.02 / 0.858 / 0.776 / 0.753 | 0.34 / 0.855 / 0.758 / 0.793 | 0.48 / **0.864** / **0.786** / **0.823** |
+| **Davao City** | 77.3% | 0.872 / 0.773 | 0.02 / 0.872 / 0.781 / 0.729 | 0.38 / 0.874 / 0.779 / 0.702 | 0.38 / **0.882** / **0.796** / **0.760** |
+| **Legazpi City** | 87.3% | 0.932 / 0.873 | 0.02 / 0.903 / 0.834 / 0.799 | 0.42 / **0.934** / **0.877** / 0.803 | 0.32 / **0.934** / **0.877** / **0.854** |
+| **Baguio** | 64.2% | 0.782 / 0.642 | 0.02 / 0.856 / 0.812 / 0.889 | 0.38 / 0.864 / 0.813 / 0.894 | 0.40 / **0.888** / **0.849** / **0.921** |
+| **Zamboanga City** | 77.5% | 0.873 / 0.775 | 0.02 / 0.861 / 0.780 / 0.725 | 0.48 / 0.882 / 0.797 / 0.743 | 0.36 / **0.889** / **0.811** / **0.818** |
+| **Macro Average** | **76.8%** | **0.867 / 0.768** | **- / 0.873 / 0.801 / 0.786** | **- / 0.886 / 0.811 / 0.796** | **- / 0.896 / 0.830 / 0.844** |
 
-Processing Legazpi City...
-Loaded 9132 daily records for 'Legazpi City' from c:\Users\orij\School\3Y1S\170\CMSC-170-Project\data\raw\legazpi.csv
-  Train: 6388 samples | Val: 1369 | Test: 1370
-  Features per sample: 55 (5 days x 11 daily features)
-
-Processing Baguio...
-Loaded 9132 daily records for 'Baguio' from c:\Users\orij\School\3Y1S\170\CMSC-170-Project\data\raw\baguio.csv
-  Train: 6388 samples | Val: 1369 | Test: 1370
-  Features per sample: 55 (5 days x 11 daily features)
-
-Processing Zamboanga City...
-Loaded 9132 daily records for 'Zamboanga City' from c:\Users\orij\School\3Y1S\170\CMSC-170-Project\data\raw\zamboanga_city.csv
-  Train: 6388 samples | Val: 1369 | Test: 1370
-  Features per sample: 55 (5 days x 11 daily features)
-
-=================================================================
-Preprocessing Summary (Ready for Model Training)
-=================================================================
-- Metro Manila    : 6388 train | 1370 test | Train Rain:  76.0%
-- Cebu City       : 6388 train | 1370 test | Train Rain:  68.3%
-- Davao City      : 6388 train | 1370 test | Train Rain:  70.2%
-- Legazpi City    : 6388 train | 1370 test | Train Rain:  75.3%
-- Baguio          : 6388 train | 1370 test | Train Rain:  56.9%
-- Zamboanga City  : 6388 train | 1370 test | Train Rain:  74.5%
-
-==============================================================================
-Gaussian Naive Bayes: initial results (VALIDATION set)
-==============================================================================
-
-[1] Learned priors (index 0 = Dry, 1 = Rain)
-  Metro Manila     P(Dry)=0.240  P(Rain)=0.760
-  Cebu City        P(Dry)=0.317  P(Rain)=0.683
-  Davao City       P(Dry)=0.298  P(Rain)=0.702
-  Legazpi City     P(Dry)=0.247  P(Rain)=0.753
-  Baguio           P(Dry)=0.431  P(Rain)=0.569
-  Zamboanga City   P(Dry)=0.255  P(Rain)=0.745
-
-[2] Sample predictions, Metro Manila (first 10 validation days)
-  Day  P(rain)  Pred@0.5  Actual
-    0    0.998         1       1
-    1    1.000         1       1
-    2    1.000         1       1
-    3    1.000         1       1
-    4    1.000         1       1
-    5    1.000         1       1
-    6    1.000         1       1
-    7    1.000         1       1
-    8    1.000         1       1
-    9    1.000         1       1
-
-[3] Metrics (threshold tuned on validation F1)
-  Location           Thr     F1   Prec    Rec    Acc    AUC | AlwaysRain F1 AlwaysRain Acc
-  Metro Manila      0.02  0.855  0.877  0.833  0.774  0.760 |         0.888          0.798
-  Cebu City         0.02  0.826  0.777  0.882  0.736  0.719 |         0.830          0.710
-  Davao City        0.02  0.841  0.791  0.896  0.753  0.755 |         0.842          0.727
-  Legazpi City      0.02  0.865  0.892  0.839  0.785  0.788 |         0.901          0.820
-  Baguio            0.02  0.854  0.874  0.835  0.818  0.870 |         0.778          0.637
-  Zamboanga City    0.02  0.817  0.804  0.830  0.744  0.769 |         0.814          0.686
-
-[4] Confusion matrix counts
-  Location            TP    FP    TN    FN
-  Metro Manila       911   128   148   182
-  Cebu City          857   246   151   115
-  Davao City         892   235   139   103
-  Legazpi City       942   114   132   181
-  Baguio             728   105   392   144
-  Zamboanga City     779   190   240   160
-K-nearest neighbour output
-k-value:  15     p-value:  2
-Metro Manila train: 6388 -> test: 1370
-Cebu City train: 6388 -> test: 1370
-Davao City train: 6388 -> test: 1370
-Legazpi City train: 6388 -> test: 1370
-Baguio train: 6388 -> test: 1370
-Zamboanga City train: 6388 -> test: 1370
-
-Metro Manila
-  Confusion matrix [[TN FP] [FN TP]]: [[107, 144], [66, 1053]]
-  Accuracy : 0.8467
-  Precision: 0.8797
-  Recall   : 0.941
-  F1-score : 0.9093
-
-Cebu City
-  Confusion matrix [[TN FP] [FN TP]]: [[148, 228], [75, 919]]
-  Accuracy : 0.7788
-  Precision: 0.8012
-  Recall   : 0.9245
-  F1-score : 0.8585
-
-Davao City
-  Confusion matrix [[TN FP] [FN TP]]: [[74, 237], [102, 957]]
-  Accuracy : 0.7526
-  Precision: 0.8015
-  Recall   : 0.9037
-  F1-score : 0.8495
-
-Legazpi City
-  Confusion matrix [[TN FP] [FN TP]]: [[56, 118], [62, 1134]]
-  Accuracy : 0.8686
-  Precision: 0.9058
-  Recall   : 0.9482
-  F1-score : 0.9265
-
-Baguio
-  Confusion matrix [[TN FP] [FN TP]]: [[371, 120], [148, 731]]
-  Accuracy : 0.8044
-  Precision: 0.859
-  Recall   : 0.8316
-  F1-score : 0.8451
-
-Zamboanga City
-  Confusion matrix [[TN FP] [FN TP]]: [[75, 233], [48, 1014]]
-  Accuracy : 0.7949
-  Precision: 0.8132
-  Recall   : 0.9548
-  F1-score : 0.8783
-
-OVERALL
-  Confusion matrix [[TN FP] [FN TP]]: [[831, 1080], [501, 5808]]
-  Accuracy : 0.8077
-  Precision: 0.8432
-  Recall   : 0.9206
-  F1-score : 0.8802
-
-==============================================================================
-Logistic Regression
-==============================================================================
-
-[1] Sample predictions, Metro Manila (first 10 validation days)
-  Day  P(rain)  Pred@0.5  Actual
-    0    0.882         1       1
-    1    0.976         1       1
-    2    0.987         1       1
-    3    0.909         1       1
-    4    0.910         1       1
-    5    0.950         1       1
-    6    0.960         1       1
-    7    0.947         1       1
-    8    0.965         1       1
-    9    0.989         1       1
-
-[2] Metrics (threshold tuned on validation F1)
-  Location           Thr     F1   Prec    Rec    Acc    AUC | AlwaysRain F1 AlwaysRain Acc
-  Metro Manila      0.38  0.902  0.840  0.973  0.831  0.827 |         0.888          0.798
-  Cebu City         0.46  0.851  0.779  0.938  0.767  0.796 |         0.830          0.710
-  Davao City        0.38  0.865  0.791  0.956  0.784  0.793 |         0.842          0.727
-  Legazpi City      0.30  0.912  0.850  0.984  0.844  0.843 |         0.901          0.820
-  Baguio            0.42  0.881  0.868  0.894  0.846  0.908 |         0.778          0.637
-  Zamboanga City    0.40  0.856  0.776  0.954  0.780  0.816 |         0.814          0.686
-
-[3] Confusion matrix counts
-  Location            TP    FP    TN    FN
-  Metro Manila      1063   202    74    30
-  Cebu City          912   259   138    60
-  Davao City         951   252   122    44
-  Legazpi City      1105   195    51    18
-  Baguio             780   119   378    92
-  Zamboanga City     896   258   172    43
-
-=================================================================
-Generating Matplotlib Visualizations...
-=================================================================
-[Plot saved] ROC curves saved to: c:\Users\orij\School\3Y1S\170\CMSC-170-Project\figures\roc_curves_by_location.png
-[Plot saved] Metrics comparison saved to: c:\Users\orij\School\3Y1S\170\CMSC-170-Project\figures\metrics_comparison.png
-[Plot saved] Calibration curves saved to: c:\Users\orij\School\3Y1S\170\CMSC-170-Project\figures\calibration_curves.png
-[Plot saved] Sample timeseries saved to: c:\Users\orij\School\3Y1S\170\CMSC-170-Project\figures\timeseries_metro_manila.png
-All figures generated successfully in: c:\Users\orij\School\3Y1S\170\CMSC-170-Project\figures
-```
+#### Visualizations
 
 ![Test metrics for the three rainfall prediction models](figures/metrics_comparison.png)
 
@@ -233,25 +115,271 @@ All figures generated successfully in: c:\Users\orij\School\3Y1S\170\CMSC-170-Pr
 
 ![Predicted rain probabilities and observed rainy days in Metro Manila](figures/timeseries_metro_manila.png)
 
+<details>
+<summary><strong>Click to view full terminal output from <code>python src/main.py</code></strong></summary>
+
+```text
+=================================================================
+CMSC 170 - Group BAWWL: Weather Pipeline
+=================================================================
+
+Processing Metro Manila...
+Loaded 9132 daily records for 'Metro Manila' from data/raw/metro_manila.csv
+  Train: 6390 samples | Val: 1369 | Test: 1370
+  Features per sample: 33 (3 days x 11 daily features)
+
+Processing Cebu City...
+Loaded 9132 daily records for 'Cebu City' from data/raw/cebu.csv
+  Train: 6390 samples | Val: 1369 | Test: 1370
+  Features per sample: 33 (3 days x 11 daily features)
+
+Processing Davao City...
+Loaded 9132 daily records for 'Davao City' from data/raw/davao.csv
+  Train: 6390 samples | Val: 1369 | Test: 1370
+  Features per sample: 33 (3 days x 11 daily features)
+
+Processing Legazpi City...
+Loaded 9132 daily records for 'Legazpi City' from data/raw/legazpi.csv
+  Train: 6390 samples | Val: 1369 | Test: 1370
+  Features per sample: 33 (3 days x 11 daily features)
+
+Processing Baguio...
+Loaded 9132 daily records for 'Baguio' from data/raw/baguio.csv
+  Train: 6390 samples | Val: 1369 | Test: 1370
+  Features per sample: 33 (3 days x 11 daily features)
+
+Processing Zamboanga City...
+Loaded 9132 daily records for 'Zamboanga City' from data/raw/zamboanga_city.csv
+  Train: 6390 samples | Val: 1369 | Test: 1370
+  Features per sample: 33 (3 days x 11 daily features)
+
+=================================================================
+Preprocessing Summary (Ready for Model Training)
+=================================================================
+- Metro Manila    : 6390 train | 1370 test | Train Rain:  76.0%
+- Cebu City       : 6390 train | 1370 test | Train Rain:  68.2%
+- Davao City      : 6390 train | 1370 test | Train Rain:  70.2%
+- Legazpi City    : 6390 train | 1370 test | Train Rain:  75.3%
+- Baguio          : 6390 train | 1370 test | Train Rain:  56.9%
+- Zamboanga City  : 6390 train | 1370 test | Train Rain:  74.5%
+
+==============================================================================
+Gaussian Naive Bayes: initial results (VALIDATION set)
+==============================================================================
+
+[1] Learned priors (index 0 = Dry, 1 = Rain)
+  Metro Manila     P(Dry)=0.240  P(Rain)=0.760
+  Cebu City        P(Dry)=0.318  P(Rain)=0.682
+  Davao City       P(Dry)=0.298  P(Rain)=0.702
+  Legazpi City     P(Dry)=0.247  P(Rain)=0.753
+  Baguio           P(Dry)=0.431  P(Rain)=0.569
+  Zamboanga City   P(Dry)=0.255  P(Rain)=0.745
+
+[2] Sample predictions, Metro Manila (first 10 validation days)
+  Day  P(rain)  Pred@0.5  Actual
+    0    0.981         1       1
+    1    1.000         1       1
+    2    1.000         1       1
+    3    1.000         1       1
+    4    1.000         1       1
+    5    0.966         1       1
+    6    0.993         1       1
+    7    0.999         1       1
+    8    1.000         1       1
+    9    1.000         1       1
+
+[3] Metrics (threshold tuned on validation F1)
+  Location           Thr     F1   Prec    Rec    Acc    AUC | AlwaysRain F1 AlwaysRain Acc
+  Metro Manila      0.02  0.864  0.870  0.858  0.785  0.767 |         0.888          0.798
+  Cebu City         0.02  0.832  0.772  0.901  0.741  0.728 |         0.830          0.710
+  Davao City        0.02  0.848  0.782  0.926  0.759  0.770 |         0.842          0.727
+  Legazpi City      0.02  0.877  0.888  0.866  0.801  0.797 |         0.901          0.820
+  Baguio            0.02  0.860  0.869  0.852  0.824  0.878 |         0.778          0.637
+  Zamboanga City    0.02  0.830  0.796  0.866  0.756  0.773 |         0.814          0.686
+
+[4] Confusion matrix counts
+  Location            TP    FP    TN    FN
+  Metro Manila       938   140   136   155
+  Cebu City          876   258   139    96
+  Davao City         921   256   118    74
+  Legazpi City       973   123   123   150
+  Baguio             743   112   385   129
+  Zamboanga City     813   208   222   126
+
+==============================================================================
+K-Nearest Neighbors: initial results (VALIDATION set)
+==============================================================================
+
+[1] Sample predictions, Metro Manila (first 10 validation days, k=151, p=2)
+  Day  P(rain)  Pred@0.5  Actual
+    0    0.887         1       1
+    1    0.967         1       1
+    2    0.940         1       1
+    3    0.921         1       1
+    4    0.887         1       1
+    5    0.881         1       1
+    6    0.947         1       1
+    7    0.927         1       1
+    8    0.954         1       1
+    9    0.974         1       1
+
+[2] Metrics (threshold tuned on validation F1)
+  Location           Thr     F1   Prec    Rec    Acc    AUC | AlwaysRain F1 AlwaysRain Acc
+  Metro Manila      0.40  0.900  0.838  0.972  0.828  0.807 |         0.888          0.798
+  Cebu City         0.34  0.846  0.744  0.980  0.747  0.770 |         0.830          0.710
+  Davao City        0.38  0.856  0.760  0.979  0.760  0.759 |         0.842          0.727
+  Legazpi City      0.42  0.911  0.848  0.984  0.842  0.802 |         0.901          0.820
+  Baguio            0.38  0.866  0.848  0.884  0.825  0.883 |         0.778          0.637
+  Zamboanga City    0.48  0.847  0.756  0.962  0.761  0.792 |         0.814          0.686
+
+[3] Confusion matrix counts
+  Location            TP    FP    TN    FN
+  Metro Manila      1062   205    71    31
+  Cebu City          953   328    69    19
+  Davao City         974   307    67    21
+  Legazpi City      1105   198    48    18
+  Baguio             771   138   359   101
+  Zamboanga City     903   291   139    36
+
+==============================================================================
+Logistic Regression: initial results (VALIDATION set)
+==============================================================================
+
+[1] Sample predictions, Metro Manila (first 10 validation days)
+  Day  P(rain)  Pred@0.5  Actual
+    0    0.916         1       1
+    1    0.999         1       1
+    2    0.999         1       1
+    3    0.973         1       1
+    4    0.958         1       1
+    5    0.945         1       1
+    6    0.982         1       1
+    7    0.987         1       1
+    8    0.995         1       1
+    9    0.999         1       1
+
+[2] Metrics (threshold tuned on validation F1)
+  Location           Thr     F1   Prec    Rec    Acc    AUC | AlwaysRain F1 AlwaysRain Acc
+  Metro Manila      0.36  0.908  0.847  0.978  0.841  0.834 |         0.888          0.798
+  Cebu City         0.48  0.855  0.797  0.922  0.778  0.799 |         0.830          0.710
+  Davao City        0.38  0.865  0.790  0.955  0.783  0.800 |         0.842          0.727
+  Legazpi City      0.32  0.915  0.855  0.985  0.850  0.853 |         0.901          0.820
+  Baguio            0.40  0.891  0.879  0.903  0.859  0.917 |         0.778          0.637
+  Zamboanga City    0.36  0.854  0.769  0.960  0.774  0.814 |         0.814          0.686
+
+[3] Confusion matrix counts
+  Location            TP    FP    TN    FN
+  Metro Manila      1069   193    83    24
+  Cebu City          896   228   169    76
+  Davao City         950   252   122    45
+  Legazpi City      1106   188    58    17
+  Baguio             787   108   389    85
+  Zamboanga City     901   271   159    38
+
+==============================================================================
+Final Model Comparison on Held-Out TEST Set (threshold tuned on validation F1)
+==============================================================================
+
+[Gaussian Naive Bayes]
+  Location           Thr     F1   Prec    Rec    Acc    AUC | AlwaysRain F1 AlwaysRain Acc |   TP   FP   TN   FN
+  Metro Manila      0.02  0.889  0.914  0.866  0.824  0.819 |         0.899          0.817 |  969   91  160  150
+  Cebu City         0.02  0.858  0.796  0.930  0.776  0.753 |         0.841          0.726 |  924  237  139   70
+  Davao City        0.02  0.872  0.797  0.962  0.781  0.729 |         0.872          0.773 | 1019  260   51   40
+  Legazpi City      0.02  0.903  0.925  0.881  0.834  0.799 |         0.932          0.873 | 1054   85   89  142
+  Baguio            0.02  0.856  0.839  0.874  0.812  0.889 |         0.782          0.642 |  768  147  344  111
+  Zamboanga City    0.02  0.861  0.840  0.884  0.780  0.725 |         0.873          0.775 |  939  179  129  123
+  Macro Average        -  0.873  0.852  0.899  0.801  0.786 |         0.867          0.768 | 5673  999  912  636
+
+[K-Nearest Neighbors (k=151)]
+  Location           Thr     F1   Prec    Rec    Acc    AUC | AlwaysRain F1 AlwaysRain Acc |   TP   FP   TN   FN
+  Metro Manila      0.40  0.910  0.852  0.976  0.842  0.843 |         0.899          0.817 | 1092  190   61   27
+  Cebu City         0.34  0.855  0.757  0.983  0.758  0.793 |         0.841          0.726 |  977  314   62   17
+  Davao City        0.38  0.874  0.780  0.994  0.779  0.702 |         0.872          0.773 | 1053  297   14    6
+  Legazpi City      0.42  0.934  0.882  0.992  0.877  0.803 |         0.932          0.873 | 1186  158   16   10
+  Baguio            0.38  0.864  0.812  0.923  0.813  0.894 |         0.782          0.642 |  811  188  303   68
+  Zamboanga City    0.48  0.882  0.801  0.982  0.797  0.743 |         0.873          0.775 | 1043  259   49   19
+  Macro Average        -  0.886  0.814  0.975  0.811  0.796 |         0.867          0.768 | 6162 1406  505  147
+
+[Logistic Regression]
+  Location           Thr     F1   Prec    Rec    Acc    AUC | AlwaysRain F1 AlwaysRain Acc |   TP   FP   TN   FN
+  Metro Manila      0.36  0.920  0.865  0.981  0.860  0.888 |         0.899          0.817 | 1098  171   80   21
+  Cebu City         0.48  0.864  0.801  0.939  0.786  0.823 |         0.841          0.726 |  933  232  144   61
+  Davao City        0.38  0.882  0.800  0.983  0.796  0.760 |         0.872          0.773 | 1041  261   50   18
+  Legazpi City      0.32  0.934  0.884  0.990  0.877  0.854 |         0.932          0.873 | 1184  156   18   12
+  Baguio            0.40  0.888  0.848  0.932  0.849  0.921 |         0.782          0.642 |  819  147  344   60
+  Zamboanga City    0.36  0.889  0.813  0.981  0.811  0.818 |         0.873          0.775 | 1042  239   69   20
+  Macro Average        -  0.896  0.835  0.968  0.830  0.844 |         0.867          0.768 | 6117 1206  705  192
+
+[Overall Test Set Summary Across All 6 Locations (Macro Average)]
+  Model                            F1   Prec    Rec    Acc    AUC
+  AlwaysRain Baseline           0.867  0.768  1.000  0.768  0.500
+  Gaussian Naive Bayes          0.873  0.852  0.899  0.801  0.786
+  K-Nearest Neighbors (k=151)   0.886  0.814  0.975  0.811  0.796
+  Logistic Regression           0.896  0.835  0.968  0.830  0.844
+```
+
+</details>
+
+---
+
 ### Discussion
-We compared the three models across 6 Philippine locations. Each model used the previous 5 days of weather data to predict whether the next day would have more than 1 mm of rain. Among the three models, Logistic Regression had the highest F1 score and ROC-AUC across all six locations. Its F1 score was 0.896, followed by K-Nearest Neighbors at 0.880, and finally, Gaussian Naive Bayes at 0.886.
 
+#### 1. Model Comparison and Why Each Method Performed as It Did
 
+- **Logistic Regression (`Macro F1 = 0.896`, `Accuracy = 0.830`, `ROC-AUC = 0.844`)** achieved the strongest overall performance across every location. Because daily meteorological features are heavily correlated across consecutive days (e.g., `T2M`, `T2M_MAX`, `T2M_MIN`, `T2MDEW`, `RH2M`, and `PRECTOTCORR` over a 3-day window), optimizing a joint linear decision boundary via binary cross-entropy allows Logistic Regression to weight informative signals (especially recent rainfall, relative humidity, and solar irradiance) without double-counting redundant variables. As shown in the calibration plot, Logistic Regression also produces the best-calibrated probability estimates, closely tracking the `y = x` diagonal.
+- **K-Nearest Neighbors (`k = 151`, `Macro F1 = 0.886`, `Accuracy = 0.811`, `ROC-AUC = 0.796`)** ranked second overall and tied Logistic Regression in Legazpi City (`F1 = 0.934`). Tuning `k` on the validation set showed that a large neighborhood (`k = 151`) works significantly better than small neighborhoods (`k = 5` or `15`), because averaging over 151 similar 3-day weather windows smooths out noisy day-to-day atmospheric variations. However, because Euclidean distance weights all 33 standardized features equally, irrelevant or noisy features dilute the distance metric compared to Logistic Regression's learned weights.
+- **Gaussian Naive Bayes (`Macro F1 = 0.873`, `Accuracy = 0.801`, `ROC-AUC = 0.786`)** achieved the highest Precision (`0.852`) and caught the most True Negatives (`912` dry days across the test set), but had the lowest Recall (`0.899`), F1 (`0.873`), and ROC-AUC (`0.786`). Its core limitation is the **conditional independence assumption**: when 33 correlated features from 3 consecutive days are treated as independent, GNB sums redundant log-likelihoods and pushes its posterior probabilities toward extreme values near `0.0` or `1.0`. This overconfidence is visible in the S-shaped calibration curve and explains why validation F1 threshold selection clipped at `0.02` for every location.
+
+#### 2. Class Imbalance and Comparison with the `AlwaysRain` Baseline
+
+Across the six tropical locations, rainy days (`> 1.0 mm`) account for `64.2%` (**Baguio**) to `87.3%` (**Legazpi City**) of the test set (`76.8%` on average). As a result:
+- A naive **`AlwaysRain` baseline** that predicts rain every single day achieves a macro F1 of `0.867` and Accuracy of `0.768` (`0.932` F1 in Legazpi City), despite having zero discriminative skill (`ROC-AUC = 0.500` and `0` True Negatives).
+- Tuning decision thresholds to maximize F1 on rain-heavy locations naturally selects lower probability cutoffs (`0.32–0.48` for Logistic Regression and KNN), trading lower dry-day specificity for very high rain recall (`0.968–0.975`).
+- The true predictive value of the models is clearest on **threshold-independent ROC-AUC** (`0.844` for Logistic Regression vs. `0.500` for `AlwaysRain`) and in **Baguio**, which has the most balanced dry/wet seasonal split (`64.2%` test rain): in Baguio, Logistic Regression reaches **`0.888` F1**, **`0.849` Accuracy**, and **`0.921` ROC-AUC**, outperforming `AlwaysRain` by **`+10.6` F1 points** and **`+20.7` percentage points in Accuracy**.
+
+#### 3. Limitations and Possible Improvements
+
+- **Single-Point Daily Aggregates:** Each location is represented by a single grid coordinate's daily average/total, which cannot capture mesoscale spatial fronts, approaching typhoons outside the grid cell, or sub-daily convective storms. Adding neighboring grid cells or pressure-tendency features ($\Delta \text{PS}$ over 24 hours) could improve storm detection.
+- **Seasonality Features:** While a 3-day window captures current atmospheric state, adding cyclical day-of-year features ($\sin(2\pi \cdot \text{DOY}/365.25)$, $\cos(2\pi \cdot \text{DOY}/365.25)$) could explicitly encode the Philippine monsoon calendar (*Amihan* vs. *Habagat*).
+- **Thresholding Objective:** Maximizing F1 in rain-dominated climates produces a high false-positive rate on dry days. Depending on the user's application, tuning thresholds via Youden's $J$ statistic ($\text{TPR} - \text{FPR}$) or cost-sensitive thresholding would better balance dry-day and rainy-day accuracy.
+
+---
 
 ### Conclusion
-The previous 5 days of weather helped predict the weather for the next day across the six locations we tested. Logistic Regression was the strongest of the methods in this experiment.
+
+Using 25 years of daily NASA POWER observations across six Philippine locations, we showed that a **3-day lookback window (33 features)** effectively predicts next-day rainfall (`> 1.0 mm`). Among our three from-scratch implementations, **Logistic Regression** was the strongest overall method (`0.896` Macro F1, `0.830` Accuracy, `0.844` ROC-AUC) and produced the best-calibrated rain probabilities, followed by **K-Nearest Neighbors (`k = 151`)** (`0.886` F1, `0.796` ROC-AUC) and **Gaussian Naive Bayes** (`0.873` F1, `0.786` ROC-AUC).
+
+---
+
+### Contributions
+
+- **Charleen Airam Casal** implemented Gaussian Naive Bayes and logistic regression and ran the model tuning.
+- **Jan Vincent Gloria** worked on project structure, initial data fetching, preprocessing, selecting the study locations, moved the comparison into its own file, added logistic regression to the comparison and plots, and worked on the project page and README.
+- **Lance Perus** wrote the preprocessing and chronological split, implemented the evaluation metrics, and prepared the final comparison tables and figures.
+- **Max Ivan Sangkal** implemented KNN from scratch and revised it for the model comparison.
+
+Everyone helped run and review the initial results.
+
+---
+
+### Acknowledgement (Declaration of Generative AI Use)
+
+During the preparation of this work, the author(s) used the following AI tools:
+
+- **Claude Sonnet 5.5** helped us write and improve the tuning script and to help optimize the knn to load faster.
+- **ChatGPT 5.6 Luna** helped us in ideating, testing, debugging, research, code architecture, and MD formatting and drafting.
+- **Google AI Overview** helped us with python syntax, debugging, ideating, and research.
+
+After using these tools, the author(s) reviewed and edited the content as needed and take(s) full responsibility for the content.
+
+---
 
 ### References
-- Patkar, U., Maske, S., Ahmad, S., Mengade, R., & Sadawarti, G. (2021). Weather prediction using machine learning. GIS Science Journal, 8(12), 118-125. [https\://www\.researchgate.net/publication/362517661_WEATHER_PREDICTION_USING_MACHINE_LEARNING](https://www.researchgate.net/publication/362517661_WEATHER_PREDICTION_USING_MACHINE_LEARNING)
 
-- Powers, D. M. W. (2011). Evaluation: From precision, recall and F-measure to ROC, informedness, markedness and correlation. _Journal of Machine Learning Technologies_, _2_(1), 37–63. [https\://www\.researchgate.net/publication/228529307](https://www.researchgate.net/publication/228529307)
-
-- J. I. N. Gojo Cruz, “Lab 04: Naïve Bayes Classifier,” laboratory handout, \[Institute of Computer Science, University of the Philippines Los Baños\], 2026\.
-
-- "Unfolding Naive Bayes from scratch: Part 2," Data Science Dojo. Accessed: Nov. 3, 2026\. \[Online\]. Available: [https\://datasciencedojo.com/blog/naive-bayes-from-scratch-part-2/](https://datasciencedojo.com/blog/naive-bayes-from-scratch-part-2/)
-
-- S. Baladram, "Gaussian Naive Bayes, explained: A visual guide with code examples for beginners," Towards Data Science, Oct. 11, 2024\. Accessed: Nov. 3, 2026\. \[Online\]. Available: [https\://towardsdatascience.com/gaussian-naive-bayes-explained-a-visual-guide-with-code-examples-for-beginners-04949cef383c](https://towardsdatascience.com/gaussian-naive-bayes-explained-a-visual-guide-with-code-examples-for-beginners-04949cef383c)
-
-- F. Lee, "What is logistic regression?," IBM, May 14, 2025. [Online]. Available: https://www.ibm.com/think/topics/logistic-regression. [Accessed: Nov. 10, 2026].
-
-- "Logistic regression in machine learning," GeeksforGeeks, Jun. 1, 2026. [Online]. Available: https://www.geeksforgeeks.org/machine-learning/understanding-logistic-regression/. [Accessed: Nov. 10, 2026].
+- Patkar, U., Maske, S., Ahmad, S., Mengade, R., & Sadawarti, G. (2021). Weather prediction using machine learning. *GIS Science Journal*, 8(12), 118–125. [https://www.researchgate.net/publication/362517661_WEATHER_PREDICTION_USING_MACHINE_LEARNING](https://www.researchgate.net/publication/362517661_WEATHER_PREDICTION_USING_MACHINE_LEARNING)
+- Powers, D. M. W. (2011). Evaluation: From precision, recall and F-measure to ROC, informedness, markedness and correlation. *Journal of Machine Learning Technologies*, 2(1), 37–63. [https://www.researchgate.net/publication/228529307](https://www.researchgate.net/publication/228529307)
+- J. I. N. Gojo Cruz, "Lab 04: Naïve Bayes Classifier," laboratory handout, Institute of Computer Science, University of the Philippines Los Baños, 2026.
+- "Unfolding Naive Bayes from scratch: Part 2," *Data Science Dojo*. Accessed: Nov. 3, 2026. [Online]. Available: [https://datasciencedojo.com/blog/naive-bayes-from-scratch-part-2/](https://datasciencedojo.com/blog/naive-bayes-from-scratch-part-2/)
+- S. Baladram, "Gaussian Naive Bayes, explained: A visual guide with code examples for beginners," *Towards Data Science*, Oct. 11, 2024. Accessed: Nov. 3, 2026. [Online]. Available: [https://towardsdatascience.com/gaussian-naive-bayes-explained-a-visual-guide-with-code-examples-for-beginners-04949cef383c](https://towardsdatascience.com/gaussian-naive-bayes-explained-a-visual-guide-with-code-examples-for-beginners-04949cef383c)
+- F. Lee, "What is logistic regression?," *IBM*, May 14, 2025. [Online]. Available: [https://www.ibm.com/think/topics/logistic-regression](https://www.ibm.com/think/topics/logistic-regression). [Accessed: Nov. 10, 2026].
+- "Logistic regression in machine learning," *GeeksforGeeks*, Jun. 1, 2026. [Online]. Available: [https://www.geeksforgeeks.org/machine-learning/understanding-logistic-regression/](https://www.geeksforgeeks.org/machine-learning/understanding-logistic-regression/). [Accessed: Nov. 10, 2026].
