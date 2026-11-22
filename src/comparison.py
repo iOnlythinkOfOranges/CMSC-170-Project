@@ -82,39 +82,32 @@ def run_gaussian_naive_bayes(preprocessed_data):
 
 def run_knn(preprocessed_data):
     print("\n" + "=" * 78)
-    print("K Nearest Neighbours")
+    print("K-Nearest Neighbors: initial results (VALIDATION set)")
     print("=" * 78)
 
     k_value = 15
     p_value = 2
 
-    results = {}
     scores_by_location = {}
-    all_labels = []
-    all_predictions = []
     for location, city_data in preprocessed_data.items():
         X_train, y_train = city_data["X_train"], city_data["y_train"]
-        X_test, y_test = city_data["X_test"], city_data["y_test"]
-        # print(location, "train:", len(X_train), "-> test:", len(X_test))
-        val_scores, _ = predict_knn(X_train, y_train, city_data["X_val"], k_value, p_value)
-        test_scores, predictions = predict_knn(X_train, y_train, X_test, k_value, p_value)
+        X_val, X_test = city_data["X_val"], city_data["X_test"]
+        val_scores, _ = predict_knn(X_train, y_train, X_val, k_value, p_value)
+        test_scores, _ = predict_knn(X_train, y_train, X_test, k_value, p_value)
         scores_by_location[location] = {
             "val_scores": val_scores,
             "test_scores": test_scores,
         }
-        results[location] = evaluate_predictions(y_test, predictions)
-        all_labels.extend(y_test)
-        all_predictions.extend(predictions)
 
-    #Raw output: first 10 validation days of the first location
+    # [1] Raw output: first 10 validation days of the first location
     first = next(iter(scores_by_location))
     probs = scores_by_location[first]["val_scores"][:10]
-    print(f"\n[1] Sample predictions, {first} (first 10 validation days)")
+    print(f"\n[1] Sample predictions, {first} (first 10 validation days, k={k_value}, p={p_value})")
     print(f"  {'Day':>3s} {'P(rain)':>8s} {'Pred@0.5':>9s} {'Actual':>7s}")
     for i, p in enumerate(probs):
         print(f"  {i:3d} {p:8.3f} {int(p >= 0.5):9d} {preprocessed_data[first]['y_val'][i]:7d}")
-    
-    #Metrics
+
+    # [2] Metrics vs. the always-rain baseline
     print("\n[2] Metrics (threshold tuned on validation F1)")
     print(f"  {'Location':16s} {'Thr':>5s} {'F1':>6s} {'Prec':>6s} {'Rec':>6s} {'Acc':>6s} "
           f"{'AUC':>6s} | {'AlwaysRain F1':>13s} {'AlwaysRain Acc':>14s}")
@@ -136,8 +129,8 @@ def run_knn(preprocessed_data):
               f"{r['recall']:6.3f} {r['accuracy']:6.3f} {auc:6.3f} | "
               f"{base['f1']:13.3f} {base['accuracy']:14.3f}")
         results.append((location, r))
-    
-    #Confusion matrix counts
+
+    # [3] Confusion matrix counts at the tuned threshold
     print("\n[3] Confusion matrix counts")
     print(f"  {'Location':16s} {'TP':>5s} {'FP':>5s} {'TN':>5s} {'FN':>5s}")
     for location, r in results:
@@ -145,9 +138,10 @@ def run_knn(preprocessed_data):
 
     return scores_by_location
 
+
 def run_logistic_regression(preprocessed_data):
     print("\n" + "=" * 78)
-    print("Logistic Regression")
+    print("Logistic Regression: initial results (VALIDATION set)")
     print("=" * 78)
 
     # Train one model per location (TRAIN data only)
@@ -211,10 +205,82 @@ def run_logistic_regression(preprocessed_data):
     return scores_by_location
 
 
+def evaluate_test_set(preprocessed_data, gnb_result, knn_result, lr_result):
+    """Evaluate all three models on the held-out TEST set using validation-tuned thresholds."""
+    print("\n" + "=" * 78)
+    print("Final Model Comparison on Held-Out TEST Set (threshold tuned on validation F1)")
+    print("=" * 78)
+
+    model_specs = [
+        ("Gaussian Naive Bayes", gnb_result),
+        ("K-Nearest Neighbors (k=15)", knn_result),
+        ("Logistic Regression", lr_result),
+    ]
+
+    overall_rows = []
+    for model_name, model_scores in model_specs:
+        if not model_scores:
+            continue
+
+        print(f"\n[{model_name}]")
+        print(f"  {'Location':16s} {'Thr':>5s} {'F1':>6s} {'Prec':>6s} {'Rec':>6s} {'Acc':>6s} "
+              f"{'AUC':>6s} | {'TP':>4s} {'FP':>4s} {'TN':>4s} {'FN':>4s}")
+
+        f1_list, prec_list, rec_list, acc_list, auc_list = [], [], [], [], []
+        pooled_y, pooled_pred, pooled_scores = [], [], []
+
+        for location, data in preprocessed_data.items():
+            if location not in model_scores:
+                continue
+            y_val = data["y_val"]
+            y_test = data["y_test"]
+            val_scores = model_scores[location]["val_scores"]
+            test_scores = model_scores[location]["test_scores"]
+
+            best_thr, _ = find_best_threshold(y_val, val_scores)
+            test_pred = [1 if s >= best_thr else 0 for s in test_scores]
+            r = evaluate_predictions(y_test, test_pred)
+            auc = roc_auc_score(y_test, test_scores)
+
+            print(f"  {location:16s} {best_thr:5.2f} {r['f1']:6.3f} {r['precision']:6.3f} "
+                  f"{r['recall']:6.3f} {r['accuracy']:6.3f} {auc:6.3f} | "
+                  f"{r['tp']:4d} {r['fp']:4d} {r['tn']:4d} {r['fn']:4d}")
+
+            f1_list.append(r["f1"])
+            prec_list.append(r["precision"])
+            rec_list.append(r["recall"])
+            acc_list.append(r["accuracy"])
+            auc_list.append(auc)
+            pooled_y.extend(y_test)
+            pooled_pred.extend(test_pred)
+            pooled_scores.extend(test_scores)
+
+        if f1_list:
+            macro_f1 = sum(f1_list) / len(f1_list)
+            macro_prec = sum(prec_list) / len(prec_list)
+            macro_rec = sum(rec_list) / len(rec_list)
+            macro_acc = sum(acc_list) / len(acc_list)
+            macro_auc = sum(auc_list) / len(auc_list)
+            pooled_r = evaluate_predictions(pooled_y, pooled_pred)
+            pooled_auc = roc_auc_score(pooled_y, pooled_scores)
+            print(f"  {'Macro Average':16s} {'-':>5s} {macro_f1:6.3f} {macro_prec:6.3f} "
+                  f"{macro_rec:6.3f} {macro_acc:6.3f} {macro_auc:6.3f} | "
+                  f"{pooled_r['tp']:4d} {pooled_r['fp']:4d} {pooled_r['tn']:4d} {pooled_r['fn']:4d}")
+            overall_rows.append((model_name, macro_f1, macro_prec, macro_rec, macro_acc, macro_auc, pooled_r, pooled_auc))
+
+    if overall_rows:
+        print("\n[Overall Test Set Summary Across All 6 Locations (Macro Average)]")
+        print(f"  {'Model':28s} {'F1':>6s} {'Prec':>6s} {'Rec':>6s} {'Acc':>6s} {'AUC':>6s}")
+        for model_name, mf1, mprec, mrec, macc, mauc, _, _ in overall_rows:
+            print(f"  {model_name:28s} {mf1:6.3f} {mprec:6.3f} {mrec:6.3f} {macc:6.3f} {mauc:6.3f}")
+
+
 def run_compare(preprocessed_data):
     gnb_result = run_gaussian_naive_bayes(preprocessed_data)
     knn_result = run_knn(preprocessed_data)
     lr_result = run_logistic_regression(preprocessed_data)
+
+    evaluate_test_set(preprocessed_data, gnb_result, knn_result, lr_result)
 
     # Generate Matplotlib comparison figures
     try:
