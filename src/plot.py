@@ -105,8 +105,10 @@ def plot_metrics_comparison(preprocessed_data, gnb_scores, knn_scores, lr_scores
         gnb_vals["Precision"].append(gnb_res["precision"])
         gnb_vals["Recall"].append(gnb_res["recall"])
 
-        # KNN evaluation (0.5 cutoff on voted predictions)
-        knn_pred = [1 if s >= 0.5 else 0 for s in knn_scores[loc]["test_scores"]]
+        # KNN evaluation with tuned threshold from val
+        knn_val = knn_scores[loc]["val_scores"]
+        knn_thr, _ = find_best_threshold(y_val, knn_val)
+        knn_pred = [1 if s >= knn_thr else 0 for s in knn_scores[loc]["test_scores"]]
         knn_res = evaluate_predictions(y_test, knn_pred)
 
         knn_vals["Accuracy"].append(knn_res["accuracy"])
