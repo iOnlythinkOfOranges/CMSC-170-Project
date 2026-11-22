@@ -253,7 +253,7 @@ def plot_sample_timeseries(preprocessed_data, gnb_scores, knn_scores, lr_scores,
     # Highlight rainy days as light blue background bands
     for idx, actual in enumerate(y_test):
         if actual == 1:
-            ax.axvspan(idx - 0.45, idx + 0.45, color="#70b5ff", alpha=0.35, lw=0, label="Observed Rain (>1mm)" if idx == 0 else "")
+            ax.axvspan(idx - 0.45, idx + 0.45, color="#70b5ff", alpha=0.35, lw=0, label="Observed Rain (>1mm)")
 
     ax.plot(x, gnb_p, color="#2b5c8f", lw=2, marker="s", ms=4, label="GNB P(Rain)")
     ax.plot(x, knn_p, color="#e65c00", lw=2, marker="o", ms=4, label="KNN P(Rain)")
