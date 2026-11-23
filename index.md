@@ -1,18 +1,18 @@
 # Next-Day Rainfall Prediction in the Philippines
 
-## CMSC 170 · Group BAWWL
+**CMSC 170 · Group BAWWL**
 
-**Members:** Charleen Airam Casal · Jan Vincent Gloria · Lance Perus · Max Ivan Sangkal
+**Members:** [mem]
 
 **Links:**
 
-- [GitHub Repository](https://github.com/iOnlythinkOfOranges/CMSC-170-Project)
-- [Project Page](https://ionlythinkoforanges.github.io/CMSC-170-Project/)
-- [Presentation Slides](https://canva.link/0eubreeu0j5mk4w)
+[links]
+
+> **Overview:** We predict whether it will rain tomorrow (more than 1.0 mm) in six Philippine cities using the previous 3 days of NASA POWER weather data. Three classifiers written from scratch (Gaussian Naive Bayes, K-Nearest Neighbors, and Logistic Regression) are compared on a test set. **Logistic Regression performed best** (macro F1 0.896, ROC-AUC 0.844).
 
 ---
 
-### Problem & Motivation
+## 1. Problem & Motivation
 
 Can we predict whether it will rain the next day (more than `1.0 mm` of precipitation) across six climatically distinct locations in the Philippines using the previous **3 days** of daily weather observations?
 
@@ -20,7 +20,7 @@ Rainfall forecasting in the Philippines is critical for agriculture, flood prepa
 
 ---
 
-### Dataset & Preprocessing
+## 2. Dataset & Preprocessing
 
 We use 25 years of daily meteorological observations (`January 1, 2000` to `December 31, 2024`, **9,132 daily records per location**; **54,792 records total**) retrieved from the [NASA POWER Daily API (Agroclimatology Community)](https://power.larc.nasa.gov/data-access-viewer/) for six Philippine locations:
 
@@ -31,7 +31,7 @@ We use 25 years of daily meteorological observations (`January 1, 2000` to `Dece
 - **Baguio** (`16.4023° N, 120.5960° E`)
 - **Zamboanga City** (`6.9214° N, 122.0790° E`)
 
-#### Daily Weather Parameters
+### Daily Weather Parameters
 
 Each daily record includes 10 raw meteorological parameters from NASA POWER, which are transformed into **11 daily numerical features**:
 
@@ -48,47 +48,76 @@ Each daily record includes 10 raw meteorological parameters from NASA POWER, whi
 | `T2MDEW`            | Dew point at 2 meters (°C)                    | Indicates absolute moisture content and condensation potential                                |
 | `ALLSKY_SFC_SW_DWN` | All-sky surface shortwave downward irradiance | Measures incoming solar energy attenuated by cloud cover                                      |
 
-#### Preprocessing Pipeline
+### Preprocessing Pipeline
 
-1. **Missing-Value Filtering:** Any daily record containing the NASA POWER missing-value sentinel (`-999`) is excluded before windowing. All 6 CSV files in `data/raw/` have 0 missing values across all 9,132 days.
+1. **Missing-Value Filtering:** NASA's missing-value marker (`-999`) is turned into "missing" and filled with the previous day's value. All 6 CSV files in `data/raw/` have 0 missing values across all 9,132 days.
 2. **Circular Wind Encoding:** Wind direction $\theta \in [0^\circ, 360^\circ]$ is mapped to $\sin(2\pi \theta / 360^\circ)$ and $\cos(2\pi \theta / 360^\circ)$, expanding the 10 raw parameters into 11 daily features.
-3. **Sliding-Window Construction (`WINDOW_SIZE = 3`):** Each sample concatenates the 11 daily features from days $t-2, t-1, t$ into a **33-feature vector** to predict binary rainfall on day $t+1$ ($1$ if `PRECTOTCORR` $> 1.0\text{ mm}$, $0$ otherwise), yielding `9,129` windowed samples per location.
-4. **Chronological Train / Validation / Test Split (`70% / 15% / 15%`):** To prevent temporal look-ahead leakage, each location's timeline is split strictly in date order into **6,390 training**, **1,369 validation**, and **1,370 test** samples.
+3. **Sliding-Window Construction (`WINDOW_SIZE = 3`):** Each sample joins the 11 features of the last **3 days** into **33 numbers**. The label is 1 if the next day's `PRECTOTCORR` is above 1.0 mm, otherwise 0. This gives 9,129 samples per location.
+4. **Chronological Train / Validation / Test Split (`70% / 15% / 15%`):** Each location is split in date order into **70% train (6,390)**, **15% validation (1,369)**, and **15% test (1,370)**, which is about 2000 to mid-2017, mid-2017 to early 2021, and early 2021 to 2024. Dates are never shuffled, so no model trains on the future.
 5. **Leakage-Free Z-Score Standardization:** For each location and each of the 33 features, the mean and standard deviation are computed **exclusively on the training split** and used to standardize the training, validation, and test splits.
 
 ---
 
-### Methods
+## 3. Methods
 
-All three classification models and evaluation metrics were implemented from scratch using only the Python standard library and `numpy` array operations:
+All three classification models and evaluation metrics were implemented from scratch using only the Python standard library and `numpy` array operations. Each location gets its own model, and each model outputs a **probability of rain**. A day is predicted as rainy when that probability reaches a threshold (see Section 4). Similar classifiers have been compared for weather prediction before [1].
 
-1. **Gaussian Naive Bayes (`GaussianNaiveBayes`):** Models each of the 33 standardized features within class $c \in \{0, 1\}$ as an independent Gaussian distribution $\mathcal{N}(\mu_{c,j}, \sigma_{c,j}^2 + \epsilon)$ with variance smoothing $\epsilon = 10^{-9}$. Predictions are computed in log-space via log-sum-exp normalization to prevent numerical underflow when summing 33 log-likelihoods.
-2. **K-Nearest Neighbors (`predict_knn`):** A non-parametric classifier that computes the Minkowski distance ($p = 2$, Euclidean distance) between a query day's 33-feature vector and all 6,390 historical training windows in that location. Using the $k = 151$ nearest neighbors, it estimates rain probability via inverse-distance weighting $w_i = 1 / (d_i + 10^{-8})$.
-3. **Logistic Regression (`LogisticRegression`):** A linear probabilistic classifier that estimates $P(\text{Rain} \mid \mathbf{x}) = \sigma(\mathbf{x}^\top \mathbf{w} + b)$, where $\sigma(z) = 1 / (1 + e^{-z})$ is clipped to $[-500, 500]$ for numerical stability. Parameters $\mathbf{w}$ and $b$ are trained via full-batch gradient descent on binary cross-entropy loss with learning rate $\alpha = 0.5$ for $2,000$ iterations.
+### Gaussian Naive Bayes
+
+It asks: does the last 3 days of weather look more like the days before rain, or the days before dry weather?
+
+- **Training:** for each class (rain, dry), we compute the share of training days in that class (the *prior*), and the mean and variance of every feature. These are the same steps as our spam-filtering lab [2], with bell curves in place of word counts [3].
+- **Prediction:** each feature is scored by how close it is to the class mean. We add the scores (using logs instead of multiplying, so the numbers don't become too small) [4], add the prior, and turn the two class scores into a probability of rain.
+- **Smoothing:** a tiny value (1e-9 × the largest variance) is added to every variance to avoid dividing by zero [3].
+- **Assumption:** features are treated as independent of each other, which is not true for weather.
+
+### K-Nearest Neighbors
+
+A non-parametric classifier that computes the Minkowski distance ($p = 2$, Euclidean distance) between a query day's 33-feature vector and all 6,390 historical training windows in that location. Using the $k = 151$ nearest neighbors, it estimates rain probability via inverse-distance weighting $w_i = 1 / (d_i + 10^{-8})$.
+
+### Logistic Regression
+
+It gives each of the 33 features a **weight**, adds them up with a bias, and passes the result through the **sigmoid function** to get a probability between 0 and 1 [5], [6].
+
+- **Training:** all weights start at 0. We then repeat 2,000 times: compute P(rain) for every training day, measure how far each guess is from the real label, and nudge the weights to reduce the error (gradient descent) [6]. The learning rate (0.5) sets the size of each nudge.
+- **Prediction:** P(rain) = sigmoid(weights × features + bias).
+- The learned weights show which features matter most, but the model can only draw a **straight dividing line** between rain and no rain.
 
 ---
 
-### Experimental Setup & Hyperparameter Tuning
+## 4. Experimental Setup
 
-We train one independent model per location and tune hyperparameters and decision thresholds exclusively on the **validation set** (`src/tune.py`) before evaluating once on the held-out **test set** (`src/main.py`):
+### Fixed settings (not tuned)
 
-| Setting                      | Value                                                                                       |
-| :--------------------------- | :------------------------------------------------------------------------------------------ |
-| **Lookback window**          | `3 days`, with 11 features per day (`33 features` per sample)                               |
-| **Rain event definition**    | Next-day precipitation `> 1.0 mm`                                                           |
-| **Chronological data split** | `70%` training (`6,390`), `15%` validation (`1,369`), `15%` test (`1,370`) per location     |
-| **Feature scaling**          | Per-location Z-score standardization using training mean and standard deviation             |
-| **Gaussian Naive Bayes**     | Variance smoothing `1e-9`                                                                   |
-| **K-Nearest Neighbors**      | `k = 151` neighbors, Euclidean distance (`p = 2`), inverse-distance weighted                |
-| **Logistic Regression**      | Learning rate `0.5`, `2,000` gradient descent iterations                                    |
-| **Decision threshold**       | Per model and location, tuned to maximize validation F1 over `0.02` to `0.98` (step `0.02`) |
-| **Baseline comparison**      | `AlwaysRain` majority-class baseline (predicts rain every day; `ROC-AUC = 0.500`)           |
+| Setting | Value |
+| :-- | :-- |
+| Rain definition | Next-day precipitation `> 1.0 mm` |
+| Data split | Chronological `70%` training (`6,390`), `15%` validation (`1,369`), `15%` test (`1,370`) per location  |
+| Feature scaling | Standardization using training mean and standard deviation |
+| Gaussian Naive Bayes smoothing | `1e-9` × the largest variance |
+| KNN distance | Euclidean (`p = 2`) |
+| Metrics | Accuracy, precision, recall, F1, and ROC-AUC, computed from the confusion matrix [7] |
+| Baseline | `AlwaysRain` (predicts rain every day; ROC-AUC = 0.500) |
+
+### Hyperparameter tuning (validation set only, `src/tune.py`)
+
+Each candidate was compared using the average validation ROC-AUC and F1 across the six locations. The test set was used once, after tuning.
+
+| Setting | Values tried | Chosen |
+| :-- | :-- | :-- |
+| Window size (days) | 3, 5, 7, 10, 14 | **3** |
+| Logistic Regression learning rate | 0.01, 0.05, 0.1, 0.3, 0.5, 0.8, 1.0 | **0.5** |
+| Logistic Regression iterations | 100, 300, 500, 1000, 2000, 3000 | **2000** |
+| KNN k | 5, 15, 25, 51, 75, 101, 151 | **151** |
+| Decision threshold | 0.02 to 0.98, step 0.02 | Tuned per model and location to maximize validation F1 |
+
+The window size was compared using Gaussian Naive Bayes and Logistic Regression only, because KNN is slow.
 
 ---
 
-### Results
+## 5. Results
 
-#### Overall Held-Out Test Set Summary (Macro Average Across All 6 Locations)
+### Overall Held-Out Test Set Summary (Macro Average Across All 6 Locations)
 
 | Model                             |  Test F1  | Test Precision | Test Recall | Test Accuracy | Test ROC-AUC | Pooled TP | Pooled FP | Pooled TN | Pooled FN |
 | :-------------------------------- | :-------: | :------------: | :---------: | :-----------: | :----------: | :-------: | :-------: | :-------: | :-------: |
@@ -97,7 +126,7 @@ We train one independent model per location and tune hyperparameters and decisio
 | **K-Nearest Neighbors (`k=151`)** |   0.886   |     0.814      |  **0.975**  |     0.811     |    0.796     | **6,162** |   1,406   |    505    |  **147**  |
 | **Logistic Regression**           | **0.896** |     0.835      |    0.968    |   **0.830**   |  **0.844**   |   6,117   |   1,206   |    705    |    192    |
 
-#### Held-Out Test Set Performance by Location
+### Held-Out Test Set Performance by Location
 
 | Location           | Test Rain Rate | AlwaysRain (F1 / Acc) | Gaussian Naive Bayes (Thr / F1 / Acc / AUC) |  KNN `k=151` (Thr / F1 / Acc / AUC)  | Logistic Regression (Thr / F1 / Acc / AUC) |
 | :----------------- | :------------: | :-------------------: | :-----------------------------------------: | :----------------------------------: | :----------------------------------------: |
@@ -109,7 +138,7 @@ We train one independent model per location and tune hyperparameters and decisio
 | **Zamboanga City** |     77.5%      |     0.873 / 0.775     |        0.02 / 0.861 / 0.780 / 0.725         |     0.48 / 0.882 / 0.797 / 0.743     |  0.36 / **0.889** / **0.811** / **0.818**  |
 | **Macro Average**  |   **76.8%**    |   **0.867 / 0.768**   |        **- / 0.873 / 0.801 / 0.786**        |    **- / 0.886 / 0.811 / 0.796**     |       **- / 0.896 / 0.830 / 0.844**        |
 
-#### Visualizations
+### Visualizations
 
 ![Test metrics for the three rainfall prediction models](figures/metrics_comparison.png)
 
@@ -326,15 +355,15 @@ Final Model Comparison on Held-Out TEST Set (threshold tuned on validation F1)
 
 ---
 
-### Discussion
+## 6. Discussion
 
-#### 1. Model Comparison and Why Each Method Performed as It Did
+### Model Comparison
 
-- **Logistic Regression (`Macro F1 = 0.896`, `Accuracy = 0.830`, `ROC-AUC = 0.844`)** achieved the strongest overall performance across every location. Because daily meteorological features are heavily correlated across consecutive days (e.g., `T2M`, `T2M_MAX`, `T2M_MIN`, `T2MDEW`, `RH2M`, and `PRECTOTCORR` over a 3-day window), optimizing a joint linear decision boundary via binary cross-entropy allows Logistic Regression to weight informative signals (especially recent rainfall, relative humidity, and solar irradiance) without double-counting redundant variables. As shown in the calibration plot, Logistic Regression also produces the best-calibrated probability estimates, closely tracking the `y = x` diagonal.
+- **Logistic Regression (`Macro F1 = 0.896`, `Accuracy = 0.830`, `ROC-AUC = 0.844`)** was the best overall, with the highest F1 in every city (tied with KNN in Legazpi City). Weather features from consecutive days are strongly correlated, for example `T2M`, `T2M_MAX`, `T2MDEW`, and `RH2M`. Logistic Regression learns all of its weights together using gradient descent, so correlated features share the credit and the more informative ones can be weighted more heavily, without the same information being counted twice. It can only draw a single linear decision boundary between rain and no rain, so beating KNN suggests that a weighted combination of these features explains most of next-day rain here. Its predicted probabilities were also the closest to the observed rain frequencies in our calibration plot.
 - **K-Nearest Neighbors (`k = 151`, `Macro F1 = 0.886`, `Accuracy = 0.811`, `ROC-AUC = 0.796`)** ranked second overall and tied Logistic Regression in Legazpi City (`F1 = 0.934`). Tuning `k` on the validation set showed that a large neighborhood (`k = 151`) works significantly better than small neighborhoods (`k = 5` or `15`), because averaging over 151 similar 3-day weather windows smooths out noisy day-to-day atmospheric variations. However, because Euclidean distance weights all 33 standardized features equally, irrelevant or noisy features dilute the distance metric compared to Logistic Regression's learned weights.
-- **Gaussian Naive Bayes (`Macro F1 = 0.873`, `Accuracy = 0.801`, `ROC-AUC = 0.786`)** achieved the highest Precision (`0.852`) and caught the most True Negatives (`912` dry days across the test set), but had the lowest Recall (`0.899`), F1 (`0.873`), and ROC-AUC (`0.786`). Its core limitation is the **conditional independence assumption**: when 33 correlated features from 3 consecutive days are treated as independent, GNB sums redundant log-likelihoods and pushes its posterior probabilities toward extreme values near `0.0` or `1.0`. This overconfidence is visible in the S-shaped calibration curve and explains why validation F1 threshold selection clipped at `0.02` for every location.
+- **Gaussian Naive Bayes (`Macro F1 = 0.873`, `Accuracy = 0.801`, `ROC-AUC = 0.786`)** had the highest precision (0.852) and the most correctly predicted dry days (912 pooled), but the lowest recall, F1, and ROC-AUC. Its main limitation is the conditional independence assumption: it treats each of the 33 features as independent given the class, but our features are strongly correlated (temperature and dew point, and the same variable on consecutive days). The same evidence is therefore counted several times when the feature log-likelihoods are added, which pushes its predicted probabilities toward extreme values near 0 or 1. This overconfidence is a likely reason its best validation threshold was 0.02, the lowest value we searched, in every city. The model also assumes each feature follows a bell curve within each class, which is only approximately true for skewed or capped variables such as rainfall and humidity.
 
-#### 2. Class Imbalance and Comparison with the `AlwaysRain` Baseline
+### Class Imbalance and Comparison with the `AlwaysRain` Baseline
 
 Across the six tropical locations, rainy days (`> 1.0 mm`) account for `64.2%` (**Baguio**) to `87.3%` (**Legazpi City**) of the test set (`76.8%` on average). As a result:
 
@@ -342,7 +371,7 @@ Across the six tropical locations, rainy days (`> 1.0 mm`) account for `64.2%` (
 - Tuning decision thresholds to maximize F1 on rain-heavy locations naturally selects lower probability cutoffs (`0.32–0.48` for Logistic Regression and KNN), trading lower dry-day specificity for very high rain recall (`0.968–0.975`).
 - The true predictive value of the models is clearest on **threshold-independent ROC-AUC** (`0.844` for Logistic Regression vs. `0.500` for `AlwaysRain`) and in **Baguio**, which has the most balanced dry/wet seasonal split (`64.2%` test rain): in Baguio, Logistic Regression reaches **`0.888` F1**, **`0.849` Accuracy**, and **`0.921` ROC-AUC**, outperforming `AlwaysRain` by **`+10.6` F1 points** and **`+20.7` percentage points in Accuracy**.
 
-#### 3. Limitations and Possible Improvements
+### Limitations and Possible Improvements
 
 - **Single-Point Daily Aggregates:** Each location is represented by a single grid coordinate's daily average/total, which cannot capture mesoscale spatial fronts, approaching typhoons outside the grid cell, or sub-daily convective storms. Adding neighboring grid cells or pressure-tendency features ($\Delta \text{PS}$ over 24 hours) could improve storm detection.
 - **Seasonality Features:** While a 3-day window captures current atmospheric state, adding cyclical day-of-year features ($\sin(2\pi \cdot \text{DOY}/365.25)$, $\cos(2\pi \cdot \text{DOY}/365.25)$) could explicitly encode the Philippine monsoon calendar (_Amihan_ vs. _Habagat_).
@@ -358,20 +387,17 @@ Using 25 years of daily NASA POWER observations across six Philippine locations,
 
 ### Contributions
 
-- **Charleen Airam Casal** implemented Gaussian Naive Bayes and logistic regression and ran the model tuning.
-- **Jan Vincent Gloria** worked on project structure, initial data fetching, preprocessing, selecting the study locations, moved the comparison into its own file, added logistic regression to the comparison and plots, and worked on the project page and README.
-- **Lance Perus** wrote the preprocessing and chronological split, implemented the evaluation metrics, and prepared the final comparison tables and figures.
-- **Max Ivan Sangkal** implemented KNN from scratch and revised it for the model comparison.
+[contrib]
 
 Everyone helped run and review the initial results.
 
 ---
 
-### Acknowledgement (Declaration of Generative AI Use)
+## Acknowledgement (Declaration of Generative AI Use)
 
 During the preparation of this work, the author(s) used the following AI tools:
 
-- **Claude Sonnet 5.5** helped us write and improve the tuning script and to help optimize the knn to load faster.
+- **Claude Sonnet 5.5** helped us draft, write, and improve the implementation of gaussian naive bayes and logistic regression, and tuning script. It also helped us optimize the knn to load faster.
 - **ChatGPT 5.6 Luna** helped us in ideating, testing, debugging, research, code architecture, and MD formatting and drafting.
 - **Google AI Overview** helped us with python syntax, debugging, ideating, and research.
 
@@ -379,12 +405,12 @@ After using these tools, the author(s) reviewed and edited the content as needed
 
 ---
 
-### References
+## References
 
-- Patkar, U., Maske, S., Ahmad, S., Mengade, R., & Sadawarti, G. (2021). Weather prediction using machine learning. _GIS Science Journal_, 8(12), 118–125. [https://www.researchgate.net/publication/362517661_WEATHER_PREDICTION_USING_MACHINE_LEARNING](https://www.researchgate.net/publication/362517661_WEATHER_PREDICTION_USING_MACHINE_LEARNING)
-- Powers, D. M. W. (2011). Evaluation: From precision, recall and F-measure to ROC, informedness, markedness and correlation. _Journal of Machine Learning Technologies_, 2(1), 37–63. [https://www.researchgate.net/publication/228529307](https://www.researchgate.net/publication/228529307)
-- J. I. N. Gojo Cruz, "Lab 04: Naïve Bayes Classifier," laboratory handout, Institute of Computer Science, University of the Philippines Los Baños, 2026.
-- "Unfolding Naive Bayes from scratch: Part 2," _Data Science Dojo_. Accessed: Nov. 3, 2026. [Online]. Available: [https://datasciencedojo.com/blog/naive-bayes-from-scratch-part-2/](https://datasciencedojo.com/blog/naive-bayes-from-scratch-part-2/)
-- S. Baladram, "Gaussian Naive Bayes, explained: A visual guide with code examples for beginners," _Towards Data Science_, Oct. 11, 2024. Accessed: Nov. 3, 2026. [Online]. Available: [https://towardsdatascience.com/gaussian-naive-bayes-explained-a-visual-guide-with-code-examples-for-beginners-04949cef383c](https://towardsdatascience.com/gaussian-naive-bayes-explained-a-visual-guide-with-code-examples-for-beginners-04949cef383c)
-- F. Lee, "What is logistic regression?," _IBM_, May 14, 2025. [Online]. Available: [https://www.ibm.com/think/topics/logistic-regression](https://www.ibm.com/think/topics/logistic-regression). [Accessed: Nov. 10, 2026].
-- "Logistic regression in machine learning," _GeeksforGeeks_, Jun. 1, 2026. [Online]. Available: [https://www.geeksforgeeks.org/machine-learning/understanding-logistic-regression/](https://www.geeksforgeeks.org/machine-learning/understanding-logistic-regression/). [Accessed: Nov. 10, 2026].
+1. U. Patkar, S. Maske, S. Ahmad, R. Mengade, and G. Sadawarti, "Weather prediction using machine learning," *GIS Sci. J.*, vol. 8, no. 12, pp. 118–125, 2021. [Online]. Available: https://www.researchgate.net/publication/362517661_WEATHER_PREDICTION_USING_MACHINE_LEARNING
+2. J. I. N. Gojo Cruz, "Lab 04: Naïve Bayes Classifier," laboratory handout, Institute of Computer Science, University of the Philippines Los Baños, 2026.
+3. S. Baladram, "Gaussian Naive Bayes, explained: A visual guide with code examples for beginners," *Towards Data Science*, Oct. 11, 2024. Accessed: Nov. 3, 2026. [Online]. Available: https://towardsdatascience.com/gaussian-naive-bayes-explained-a-visual-guide-with-code-examples-for-beginners-04949cef383c
+4. "Unfolding Naive Bayes from scratch: Part 2," *Data Science Dojo*. Accessed: Nov. 3, 2026. [Online]. Available: https://datasciencedojo.com/blog/naive-bayes-from-scratch-part-2/
+5. F. Lee, "What is logistic regression?," *IBM*, May 14, 2025. Accessed: Nov. 10, 2026. [Online]. Available: https://www.ibm.com/think/topics/logistic-regression
+6. "Logistic regression in machine learning," *GeeksforGeeks*, Jun. 1, 2026. Accessed: Nov. 10, 2026. [Online]. Available: https://www.geeksforgeeks.org/machine-learning/understanding-logistic-regression/
+7. D. M. W. Powers, "Evaluation: From precision, recall and F-measure to ROC, informedness, markedness and correlation," *J. Mach. Learn. Technol.*, vol. 2, no. 1, pp. 37–63, 2011. [Online]. Available: https://www.researchgate.net/publication/228529307
