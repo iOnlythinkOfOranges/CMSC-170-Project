@@ -1,3 +1,7 @@
+# DECLARATION ON GENERATIVE AI
+# During the preparation of this work, the author(s) used Claude Sonnet 5.5 to help draft its pseudocode and implementation. 
+# After using this tool, the author(s) reviewed, tested, and edited the content as needed and take(s) full responsibility for the content.
+
 # Logistic Regression Implementation
 
 # GOAL: predict whether it will rain tomorrow (1) or stay dry (0)

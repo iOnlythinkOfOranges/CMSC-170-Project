@@ -6,6 +6,8 @@ import math
 import numpy as np
 from data.nasa_api import PARAMETERS
 
+WINDOW_SIZE = 3     # days of past weather per prediction
+
 # Ref: NASA POWER data dictionary uses -999.0 as missing observation sentinel
 MISSING_VALUE = -999.0
 
@@ -113,8 +115,8 @@ def extract_daily_features(row):
     ]
 
 
-# Ref: Lookback W=5 days captures synoptic systems (Milestone 1); WMO/PAGASA > 1.0 mm separates measurable rain from trace
-def create_sliding_windows(rows, window_size=5, rain_threshold=1.0):
+# Ref: Lookback W=3 days captures synoptic systems (Milestone 1); WMO/PAGASA > 1.0 mm separates measurable rain from trace
+def create_sliding_windows(rows, window_size=WINDOW_SIZE, rain_threshold=1.0):
     daily_vectors = [extract_daily_features(r) for r in rows]
 
     X = []
@@ -171,7 +173,7 @@ def standardize_features(X_train, X_val, X_test):
 
 
 # Complete end-to-end preprocessing pipeline for one location
-def preprocess_location(rows, window_size=5, rain_threshold=1.0):
+def preprocess_location(rows, window_size=WINDOW_SIZE, rain_threshold=1.0):
     cleaned = clean_rows(rows)
     imputed = impute_missing(cleaned)
     X, y, target_dates = create_sliding_windows(

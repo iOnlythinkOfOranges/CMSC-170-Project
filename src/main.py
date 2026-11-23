@@ -3,7 +3,7 @@ from data.preprocess import preprocess_location
 from comparison import run_compare
 START_DATE = "20000101"
 END_DATE = "20241231"
-WINDOW_SIZE = 3        # days of past weather per prediction (tune: 3, 5, 7)
+WINDOW_SIZE = 3        # days of past weather per prediction
 RAIN_THRESHOLD = 1.0   # mm of rain tomorrow that counts as "rain" (definition, not tuned)
 
 def main():
@@ -24,7 +24,7 @@ def main():
                 start_date=START_DATE,
                 end_date=END_DATE,
             )
-            # 5-day lookback window with 1.0 mm rain threshold
+            # 3-day lookback window with 1.0 mm rain threshold
             data = preprocess_location(rows, window_size=WINDOW_SIZE, rain_threshold=RAIN_THRESHOLD)
             preprocessed_data[location] = data
             print(f"  Train: {len(data['X_train'])} samples | Val: {len(data['X_val'])} | Test: {len(data['X_test'])}")
