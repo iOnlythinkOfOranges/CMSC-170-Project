@@ -18,7 +18,7 @@
 
 Can we predict whether it will rain the next day (more than `1.0 mm` of precipitation) across six climatically distinct locations in the Philippines using the previous **3 days** of daily weather observations?
 
-Rainfall forecasting in the Philippines is critical for agriculture, flood preparedness, commuting, and disaster risk reduction. Because the archipelago spans several climate regimes—from the distinct dry and wet seasons of Western Luzon (**Metro Manila** and **Baguio**) to areas with no pronounced dry season and heavy year-round rainfall (**Legazpi City** and **Davao City**), as well as central and southern coastal regions (**Cebu City** and **Zamboanga City**)—a useful model must generalize across diverse local rainfall distributions. In this project, we implement and compare three classic machine learning classifiers **from scratch**—**Gaussian Naive Bayes**, **K-Nearest Neighbors (KNN)**, and **Logistic Regression**—to evaluate how well recent multi-day surface weather patterns predict next-day rainfall.
+We selected six Philippine locations to compare next-day rainfall prediction across four Modified Coronas rainfall regimes. Lowland Metro Manila and highland Baguio have distinct wet and dry seasons (Type I) [1, Fig. 1]. Legazpi City receives rain year-round with a pronounced wet-season peak (Type II), while Davao City receives rainfall more evenly throughout the year (Type IV) [1, Fig. 1]. The Cebu City area and Zamboanga City represent Type III in the Visayas and Mindanao, respectively [1, Fig. 1]. In this project, we implement and compare three classic machine learning classifiers **from scratch**—**Gaussian Naive Bayes**, **K-Nearest Neighbors (KNN)**, and **Logistic Regression**—to evaluate how well recent multi-day surface weather patterns predict next-day rainfall.
 
 ---
 
@@ -62,15 +62,15 @@ Each daily record includes 10 raw meteorological parameters from NASA POWER, whi
 
 ## 3. Methods
 
-All three classification models and evaluation metrics were implemented from scratch using only the Python standard library and `numpy` array operations. Each location gets its own model, and each model outputs a **probability of rain**. A day is predicted as rainy when that probability reaches a threshold (see Section 4). Similar classifiers have been compared for weather prediction before [1].
+All three classification models and evaluation metrics were implemented from scratch using only the Python standard library and `numpy` array operations. Each location gets its own model, and each model outputs a **probability of rain**. A day is predicted as rainy when that probability reaches a threshold (see Section 4). Similar classifiers have been compared for weather prediction before [2].
 
 ### Gaussian Naive Bayes
 
 It asks: does the last 3 days of weather look more like the days before rain, or the days before dry weather?
 
-- **Training:** for each class (rain, dry), we compute the share of training days in that class (the _prior_), and the mean and variance of every feature. These are the same steps as our spam-filtering lab [2], with bell curves in place of word counts [3].
-- **Prediction:** each feature is scored by how close it is to the class mean. We add the scores (using logs instead of multiplying, so the numbers don't become too small) [4], add the prior, and turn the two class scores into a probability of rain.
-- **Smoothing:** a tiny value (1e-9 × the largest variance) is added to every variance to avoid dividing by zero [3].
+- **Training:** for each class (rain, dry), we compute the share of training days in that class (the _prior_), and the mean and variance of every feature. These are the same steps as our spam-filtering lab [3], with bell curves in place of word counts [4].
+- **Prediction:** each feature is scored by how close it is to the class mean. We add the scores (using logs instead of multiplying, so the numbers don't become too small) [5], add the prior, and turn the two class scores into a probability of rain.
+- **Smoothing:** a tiny value (1e-9 × the largest variance) is added to every variance to avoid dividing by zero [4].
 - **Assumption:** features are treated as independent of each other, which is not true for weather.
 
 ### K-Nearest Neighbors
@@ -79,9 +79,9 @@ KNN finds the k most similar training days (smallest Euclidean distance between 
 
 ### Logistic Regression
 
-It gives each of the 33 features a **weight**, adds them up with a bias, and passes the result through the **sigmoid function** to get a probability between 0 and 1 [5], [6].
+It gives each of the 33 features a **weight**, adds them up with a bias, and passes the result through the **sigmoid function** to get a probability between 0 and 1 [6], [7].
 
-- **Training:** all weights start at 0. We then repeat 2,000 times: compute P(rain) for every training day, measure how far each guess is from the real label, and nudge the weights to reduce the error (gradient descent) [6]. The learning rate (0.5) sets the size of each nudge.
+- **Training:** all weights start at 0. We then repeat 2,000 times: compute P(rain) for every training day, measure how far each guess is from the real label, and nudge the weights to reduce the error (gradient descent) [7]. The learning rate (0.5) sets the size of each nudge.
 - **Prediction:** P(rain) = sigmoid(weights × features + bias).
 - The learned weights show which features matter most, but the model can only draw a **straight dividing line** between rain and no rain.
 
@@ -98,7 +98,7 @@ It gives each of the 33 features a **weight**, adds them up with a bias, and pas
 | Feature scaling                | Standardization using training mean and standard deviation                                            |
 | Gaussian Naive Bayes smoothing | `1e-9` × the largest variance                                                                         |
 | KNN distance                   | Euclidean (`p = 2`)                                                                                   |
-| Metrics                        | Accuracy, precision, recall, F1, and ROC-AUC, computed from the confusion matrix [7]                  |
+| Metrics                        | Accuracy, precision, recall, F1, and ROC-AUC, computed from the confusion matrix [8]                  |
 | Baseline                       | `AlwaysRain` (predicts rain every day; ROC-AUC = 0.500)                                               |
 
 ### Hyperparameter tuning (validation set only, `src/tune.py`)
@@ -415,10 +415,18 @@ After using these tools, the author(s) reviewed and edited the content as needed
 
 ## References
 
-1. U. Patkar, S. Maske, S. Ahmad, R. Mengade, and G. Sadawarti, "Weather prediction using machine learning," _GIS Sci. J._, vol. 8, no. 12, pp. 118–125, 2021. [Online]. Available: https://www.researchgate.net/publication/362517661_WEATHER_PREDICTION_USING_MACHINE_LEARNING
-2. J. I. N. Gojo Cruz, "Lab 04: Naïve Bayes Classifier," laboratory handout, Institute of Computer Science, University of the Philippines Los Baños, 2026.
-3. S. Baladram, "Gaussian Naive Bayes, explained: A visual guide with code examples for beginners," _Towards Data Science_, Oct. 11, 2024. Accessed: Nov. 3, 2026. [Online]. Available: https://towardsdatascience.com/gaussian-naive-bayes-explained-a-visual-guide-with-code-examples-for-beginners-04949cef383c
-4. "Unfolding Naive Bayes from scratch: Part 2," _Data Science Dojo_. Accessed: Nov. 3, 2026. [Online]. Available: https://datasciencedojo.com/blog/naive-bayes-from-scratch-part-2/
-5. F. Lee, "What is logistic regression?," _IBM_, May 14, 2025. Accessed: Nov. 10, 2026. [Online]. Available: https://www.ibm.com/think/topics/logistic-regression
-6. "Logistic regression in machine learning," _GeeksforGeeks_, Jun. 1, 2026. Accessed: Nov. 10, 2026. [Online]. Available: https://www.geeksforgeeks.org/machine-learning/understanding-logistic-regression/
-7. D. M. W. Powers, "Evaluation: From precision, recall and F-measure to ROC, informedness, markedness and correlation," _J. Mach. Learn. Technol._, vol. 2, no. 1, pp. 37–63, 2011. [Online]. Available: https://www.researchgate.net/publication/228529307
+[1] Oscar M. Lopez Center and Philippine Atmospheric, Geophysical and Astronomical Services Administration (PAGASA), State of the 2022 Philippine Climate, 2024, p. 8, fig. 1.
+
+[2] U. Patkar, S. Maske, S. Ahmad, R. Mengade, and G. Sadawarti, "Weather prediction using machine learning," _GIS Sci. J._, vol. 8, no. 12, pp. 118–125, 2021. [Online]. Available: https://www.researchgate.net/publication/362517661_WEATHER_PREDICTION_USING_MACHINE_LEARNING
+
+[3] J. I. N. Gojo Cruz, "Lab 04: Naïve Bayes Classifier," laboratory handout, Institute of Computer Science, University of the Philippines Los Baños, 2026.
+
+[4] S. Baladram, "Gaussian Naive Bayes, explained: A visual guide with code examples for beginners," _Towards Data Science_, Oct. 11, 2024. Accessed: Nov. 3, 2026. [Online]. Available: https://towardsdatascience.com/gaussian-naive-bayes-explained-a-visual-guide-with-code-examples-for-beginners-04949cef383c
+
+[5] "Unfolding Naive Bayes from scratch: Part 2," _Data Science Dojo_. Accessed: Nov. 3, 2026. [Online]. Available: https://datasciencedojo.com/blog/naive-bayes-from-scratch-part-2/
+
+[6] F. Lee, "What is logistic regression?," _IBM_, May 14, 2025. Accessed: Nov. 10, 2026. [Online]. Available: https://www.ibm.com/think/topics/logistic-regression
+
+[7] "Logistic regression in machine learning," _GeeksforGeeks_, Jun. 1, 2026. Accessed: Nov. 10, 2026. [Online]. Available: https://www.geeksforgeeks.org/machine-learning/understanding-logistic-regression/
+
+[8] D. M. W. Powers, "Evaluation: From precision, recall and F-measure to ROC, informedness, markedness and correlation," _J. Mach. Learn. Technol._, vol. 2, no. 1, pp. 37–63, 2011. [Online]. Available: https://www.researchgate.net/publication/228529307
