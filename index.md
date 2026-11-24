@@ -2,11 +2,13 @@
 
 **CMSC 170 · Group BAWWL**
 
-**Members:** [mem]
+**Members:** Charleen Airam Casal · Jan Vincent Gloria · Lance Perus · Max Ivan Sangkal
 
 **Links:**
 
-[links]
+- [GitHub Repository](https://github.com/iOnlythinkOfOranges/CMSC-170-Project)
+- [Project Page](https://ionlythinkoforanges.github.io/CMSC-170-Project/)
+- [Presentation Slides](https://canva.link/0eubreeu0j5mk4w)
 
 > **Overview:** We predict whether it will rain tomorrow (more than 1.0 mm) in six Philippine cities using the previous 3 days of NASA POWER weather data. Three classifiers written from scratch (Gaussian Naive Bayes, K-Nearest Neighbors, and Logistic Regression) are compared on a test set. **Logistic Regression performed best** (macro F1 0.896, ROC-AUC 0.844).
 
@@ -24,7 +26,7 @@ Rainfall forecasting in the Philippines is critical for agriculture, flood prepa
 
 We use 25 years of daily meteorological observations (`January 1, 2000` to `December 31, 2024`, **9,132 daily records per location**; **54,792 records total**) retrieved from the [NASA POWER Daily API (Agroclimatology Community)](https://power.larc.nasa.gov/data-access-viewer/) for six Philippine locations:
 
-- **Metro Manila** (`14.5995° N, 120.9842° E`)
+- **Metro Manila** (`14.6400° N, 121.0400° E`)
 - **Cebu City** (`10.3157° N, 123.8854° E`)
 - **Davao City** (`7.1907° N, 125.4553° E`)
 - **Legazpi City** (`13.1391° N, 123.7438° E`)
@@ -51,7 +53,7 @@ Each daily record includes 10 raw meteorological parameters from NASA POWER, whi
 ### Preprocessing Pipeline
 
 1. **Missing-Value Filtering:** NASA's missing-value marker (`-999`) is turned into "missing" and filled with the previous day's value. All 6 CSV files in `data/raw/` have 0 missing values across all 9,132 days.
-2. **Circular Wind Encoding:** Wind direction $\theta \in [0^\circ, 360^\circ]$ is mapped to $\sin(2\pi \theta / 360^\circ)$ and $\cos(2\pi \theta / 360^\circ)$, expanding the 10 raw parameters into 11 daily features.
+2. **Circular Wind Encoding:** Wind direction is a circle (359° and 1° are almost the same), so we replace it with its sine and cosine, which expands the 10 raw parameters into 11 daily features.
 3. **Sliding-Window Construction (`WINDOW_SIZE = 3`):** Each sample joins the 11 features of the last **3 days** into **33 numbers**. The label is 1 if the next day's `PRECTOTCORR` is above 1.0 mm, otherwise 0. This gives 9,129 samples per location.
 4. **Chronological Train / Validation / Test Split (`70% / 15% / 15%`):** Each location is split in date order into **70% train (6,390)**, **15% validation (1,369)**, and **15% test (1,370)**, which is about 2000 to mid-2017, mid-2017 to early 2021, and early 2021 to 2024. Dates are never shuffled, so no model trains on the future.
 5. **Leakage-Free Z-Score Standardization:** For each location and each of the 33 features, the mean and standard deviation are computed **exclusively on the training split** and used to standardize the training, validation, and test splits.
@@ -73,7 +75,7 @@ It asks: does the last 3 days of weather look more like the days before rain, or
 
 ### K-Nearest Neighbors
 
-A non-parametric classifier that computes the Minkowski distance ($p = 2$, Euclidean distance) between a query day's 33-feature vector and all 6,390 historical training windows in that location. Using the $k = 151$ nearest neighbors, it estimates rain probability via inverse-distance weighting $w_i = 1 / (d_i + 10^{-8})$.
+KNN finds the k most similar training days (smallest Euclidean distance between the 33-number vectors). The share of those days followed by rain is the predicted probability of rain. We use k = 151, chosen on the validation set.
 
 ### Logistic Regression
 
@@ -373,21 +375,29 @@ Across the six tropical locations, rainy days (`> 1.0 mm`) account for `64.2%` (
 
 ### Limitations and Possible Improvements
 
-- **Single-Point Daily Aggregates:** Each location is represented by a single grid coordinate's daily average/total, which cannot capture mesoscale spatial fronts, approaching typhoons outside the grid cell, or sub-daily convective storms. Adding neighboring grid cells or pressure-tendency features ($\Delta \text{PS}$ over 24 hours) could improve storm detection.
-- **Seasonality Features:** While a 3-day window captures current atmospheric state, adding cyclical day-of-year features ($\sin(2\pi \cdot \text{DOY}/365.25)$, $\cos(2\pi \cdot \text{DOY}/365.25)$) could explicitly encode the Philippine monsoon calendar (_Amihan_ vs. _Habagat_).
-- **Thresholding Objective:** Maximizing F1 in rain-dominated climates produces a high false-positive rate on dry days. Depending on the user's application, tuning thresholds via Youden's $J$ statistic ($\text{TPR} - \text{FPR}$) or cost-sensitive thresholding would better balance dry-day and rainy-day accuracy.
+### Limitations and Possible Improvements
+
+- **Gridded daily data:** Each location is a single NASA POWER grid point, which is a satellite and model-based daily estimate, not a rain gauge reading. It cannot capture short local showers, storms approaching from outside the grid cell, or rain that falls within the day. Adding neighboring grid points, or the 24-hour change in surface pressure, could help detect approaching storms.
+- **No seasonal information:** The 3-day window shows the current weather but not the time of year. Adding the day of the year as sine and cosine (so December 31 sits next to January 1) could help the models learn the wet and dry seasons (*Amihan* and *Habagat*).
+- **Threshold choice:** Maximizing F1 when most days are rainy favors predicting rain, which gives many false alarms on dry days. A rule that balances the true positive and false positive rates (Youden's J), or one that weights the cost of a false alarm against a missed rain, would treat dry days more fairly.
+- **Model assumptions:** Gaussian Naive Bayes assumes independent, bell-shaped features, and Logistic Regression can only draw a straight decision boundary. Neither fits weather perfectly, which limits how well they can do.
+- **Tuning range:** Some chosen values were at the edge of what we tried (k = 151 for KNN, and the 0.02 threshold for Gaussian Naive Bayes), so slightly better values may exist outside our search range.
+- **Single split:** All results come from one chronological split, with the test set covering about 2021 to 2024. Other periods, such as El Niño or La Niña years, could give different scores.
 
 ---
 
-### Conclusion
+## 7. Conclusion
 
 Using 25 years of daily NASA POWER observations across six Philippine locations, we showed that a **3-day lookback window (33 features)** effectively predicts next-day rainfall (`> 1.0 mm`). Among our three from-scratch implementations, **Logistic Regression** was the strongest overall method (`0.896` Macro F1, `0.830` Accuracy, `0.844` ROC-AUC) and produced the best-calibrated rain probabilities, followed by **K-Nearest Neighbors (`k = 151`)** (`0.886` F1, `0.796` ROC-AUC) and **Gaussian Naive Bayes** (`0.873` F1, `0.786` ROC-AUC).
 
 ---
 
-### Contributions
+## 8. Contributions
 
-[contrib]
+[- **Charleen Airam Casal** implemented Gaussian Naive Bayes and logistic regression and ran the model tuning.
+- **Jan Vincent Gloria** worked on project structure, initial data fetching, preprocessing, selecting the study locations, moved the comparison into its own file, added logistic regression to the comparison and plots, and worked on the project page and README.
+- **Lance Perus** wrote the preprocessing and chronological split, implemented the evaluation metrics, and prepared the final comparison tables and figures.
+- **Max Ivan Sangkal** implemented KNN from scratch and revised it for the model comparison.]
 
 Everyone helped run and review the initial results.
 
