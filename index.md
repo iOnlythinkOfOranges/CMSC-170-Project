@@ -89,6 +89,8 @@ It gives each of the 33 features a **weight**, adds them up with a bias, and pas
 
 ## 4. Experimental Setup
 
+We evaluate next-day rainfall predictions through backtesting on held-out historical weather data. Live forecasting is outside the scope of this project.
+
 ### Fixed settings (not tuned)
 
 | Setting                        | Value                                                                                                 |
