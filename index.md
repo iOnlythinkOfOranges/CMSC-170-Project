@@ -395,7 +395,7 @@ Using 25 years of daily NASA POWER observations across six Philippine locations,
 - **Charleen Airam Casal** implemented Gaussian Naive Bayes and logistic regression and ran the model tuning.
 - **Jan Vincent Gloria** worked on project structure, initial data fetching, preprocessing, selecting the study locations, moved the comparison into its own file, added logistic regression to the comparison and plots, and worked on the project page and README.
 - **Lance Perus** wrote the preprocessing and chronological split, implemented the evaluation metrics, and prepared the final comparison tables and figures.
-- **Max Ivan Sangkal** implemented KNN from scratch and revised it for the model comparison.]
+- **Max Ivan Sangkal** implemented KNN from scratch and revised it for the model comparison.
 
 Everyone helped run and review the initial results.
 
