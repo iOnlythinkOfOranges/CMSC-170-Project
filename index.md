@@ -68,7 +68,7 @@ All three classification models and evaluation metrics were implemented from scr
 
 It asks: does the last 3 days of weather look more like the days before rain, or the days before dry weather?
 
-- **Training:** for each class (rain, dry), we compute the share of training days in that class (the *prior*), and the mean and variance of every feature. These are the same steps as our spam-filtering lab [2], with bell curves in place of word counts [3].
+- **Training:** for each class (rain, dry), we compute the share of training days in that class (the _prior_), and the mean and variance of every feature. These are the same steps as our spam-filtering lab [2], with bell curves in place of word counts [3].
 - **Prediction:** each feature is scored by how close it is to the class mean. We add the scores (using logs instead of multiplying, so the numbers don't become too small) [4], add the prior, and turn the two class scores into a probability of rain.
 - **Smoothing:** a tiny value (1e-9 × the largest variance) is added to every variance to avoid dividing by zero [3].
 - **Assumption:** features are treated as independent of each other, which is not true for weather.
@@ -91,27 +91,27 @@ It gives each of the 33 features a **weight**, adds them up with a bias, and pas
 
 ### Fixed settings (not tuned)
 
-| Setting | Value |
-| :-- | :-- |
-| Rain definition | Next-day precipitation `> 1.0 mm` |
-| Data split | Chronological `70%` training (`6,390`), `15%` validation (`1,369`), `15%` test (`1,370`) per location  |
-| Feature scaling | Standardization using training mean and standard deviation |
-| Gaussian Naive Bayes smoothing | `1e-9` × the largest variance |
-| KNN distance | Euclidean (`p = 2`) |
-| Metrics | Accuracy, precision, recall, F1, and ROC-AUC, computed from the confusion matrix [7] |
-| Baseline | `AlwaysRain` (predicts rain every day; ROC-AUC = 0.500) |
+| Setting                        | Value                                                                                                 |
+| :----------------------------- | :---------------------------------------------------------------------------------------------------- |
+| Rain definition                | Next-day precipitation `> 1.0 mm`                                                                     |
+| Data split                     | Chronological `70%` training (`6,390`), `15%` validation (`1,369`), `15%` test (`1,370`) per location |
+| Feature scaling                | Standardization using training mean and standard deviation                                            |
+| Gaussian Naive Bayes smoothing | `1e-9` × the largest variance                                                                         |
+| KNN distance                   | Euclidean (`p = 2`)                                                                                   |
+| Metrics                        | Accuracy, precision, recall, F1, and ROC-AUC, computed from the confusion matrix [7]                  |
+| Baseline                       | `AlwaysRain` (predicts rain every day; ROC-AUC = 0.500)                                               |
 
 ### Hyperparameter tuning (validation set only, `src/tune.py`)
 
 Each candidate was compared using the average validation ROC-AUC and F1 across the six locations. The test set was used once, after tuning.
 
-| Setting | Values tried | Chosen |
-| :-- | :-- | :-- |
-| Window size (days) | 3, 5, 7, 10, 14 | **3** |
-| Logistic Regression learning rate | 0.01, 0.05, 0.1, 0.3, 0.5, 0.8, 1.0 | **0.5** |
-| Logistic Regression iterations | 100, 300, 500, 1000, 2000, 3000 | **2000** |
-| KNN k | 5, 15, 25, 51, 75, 101, 151 | **151** |
-| Decision threshold | 0.02 to 0.98, step 0.02 | Tuned per model and location to maximize validation F1 |
+| Setting                           | Values tried                        | Chosen                                                 |
+| :-------------------------------- | :---------------------------------- | :----------------------------------------------------- |
+| Window size (days)                | 3, 5, 7, 10, 14                     | **3**                                                  |
+| Logistic Regression learning rate | 0.01, 0.05, 0.1, 0.3, 0.5, 0.8, 1.0 | **0.5**                                                |
+| Logistic Regression iterations    | 100, 300, 500, 1000, 2000, 3000     | **2000**                                               |
+| KNN k                             | 5, 15, 25, 51, 75, 101, 151         | **151**                                                |
+| Decision threshold                | 0.02 to 0.98, step 0.02             | Tuned per model and location to maximize validation F1 |
 
 The window size was compared using Gaussian Naive Bayes and Logistic Regression only, because KNN is slow.
 
@@ -375,10 +375,8 @@ Across the six tropical locations, rainy days (`> 1.0 mm`) account for `64.2%` (
 
 ### Limitations and Possible Improvements
 
-### Limitations and Possible Improvements
-
 - **Gridded daily data:** Each location is a single NASA POWER grid point, which is a satellite and model-based daily estimate, not a rain gauge reading. It cannot capture short local showers, storms approaching from outside the grid cell, or rain that falls within the day. Adding neighboring grid points, or the 24-hour change in surface pressure, could help detect approaching storms.
-- **No seasonal information:** The 3-day window shows the current weather but not the time of year. Adding the day of the year as sine and cosine (so December 31 sits next to January 1) could help the models learn the wet and dry seasons (*Amihan* and *Habagat*).
+- **No seasonal information:** The 3-day window shows the current weather but not the time of year. Adding the day of the year as sine and cosine (so December 31 sits next to January 1) could help the models learn the wet and dry seasons (_Amihan_ and _Habagat_).
 - **Threshold choice:** Maximizing F1 when most days are rainy favors predicting rain, which gives many false alarms on dry days. A rule that balances the true positive and false positive rates (Youden's J), or one that weights the cost of a false alarm against a missed rain, would treat dry days more fairly.
 - **Model assumptions:** Gaussian Naive Bayes assumes independent, bell-shaped features, and Logistic Regression can only draw a straight decision boundary. Neither fits weather perfectly, which limits how well they can do.
 - **Tuning range:** Some chosen values were at the edge of what we tried (k = 151 for KNN, and the 0.02 threshold for Gaussian Naive Bayes), so slightly better values may exist outside our search range.
@@ -394,7 +392,7 @@ Using 25 years of daily NASA POWER observations across six Philippine locations,
 
 ## 8. Contributions
 
-[- **Charleen Airam Casal** implemented Gaussian Naive Bayes and logistic regression and ran the model tuning.
+- **Charleen Airam Casal** implemented Gaussian Naive Bayes and logistic regression and ran the model tuning.
 - **Jan Vincent Gloria** worked on project structure, initial data fetching, preprocessing, selecting the study locations, moved the comparison into its own file, added logistic regression to the comparison and plots, and worked on the project page and README.
 - **Lance Perus** wrote the preprocessing and chronological split, implemented the evaluation metrics, and prepared the final comparison tables and figures.
 - **Max Ivan Sangkal** implemented KNN from scratch and revised it for the model comparison.]
@@ -417,10 +415,10 @@ After using these tools, the author(s) reviewed and edited the content as needed
 
 ## References
 
-1. U. Patkar, S. Maske, S. Ahmad, R. Mengade, and G. Sadawarti, "Weather prediction using machine learning," *GIS Sci. J.*, vol. 8, no. 12, pp. 118–125, 2021. [Online]. Available: https://www.researchgate.net/publication/362517661_WEATHER_PREDICTION_USING_MACHINE_LEARNING
+1. U. Patkar, S. Maske, S. Ahmad, R. Mengade, and G. Sadawarti, "Weather prediction using machine learning," _GIS Sci. J._, vol. 8, no. 12, pp. 118–125, 2021. [Online]. Available: https://www.researchgate.net/publication/362517661_WEATHER_PREDICTION_USING_MACHINE_LEARNING
 2. J. I. N. Gojo Cruz, "Lab 04: Naïve Bayes Classifier," laboratory handout, Institute of Computer Science, University of the Philippines Los Baños, 2026.
-3. S. Baladram, "Gaussian Naive Bayes, explained: A visual guide with code examples for beginners," *Towards Data Science*, Oct. 11, 2024. Accessed: Nov. 3, 2026. [Online]. Available: https://towardsdatascience.com/gaussian-naive-bayes-explained-a-visual-guide-with-code-examples-for-beginners-04949cef383c
-4. "Unfolding Naive Bayes from scratch: Part 2," *Data Science Dojo*. Accessed: Nov. 3, 2026. [Online]. Available: https://datasciencedojo.com/blog/naive-bayes-from-scratch-part-2/
-5. F. Lee, "What is logistic regression?," *IBM*, May 14, 2025. Accessed: Nov. 10, 2026. [Online]. Available: https://www.ibm.com/think/topics/logistic-regression
-6. "Logistic regression in machine learning," *GeeksforGeeks*, Jun. 1, 2026. Accessed: Nov. 10, 2026. [Online]. Available: https://www.geeksforgeeks.org/machine-learning/understanding-logistic-regression/
-7. D. M. W. Powers, "Evaluation: From precision, recall and F-measure to ROC, informedness, markedness and correlation," *J. Mach. Learn. Technol.*, vol. 2, no. 1, pp. 37–63, 2011. [Online]. Available: https://www.researchgate.net/publication/228529307
+3. S. Baladram, "Gaussian Naive Bayes, explained: A visual guide with code examples for beginners," _Towards Data Science_, Oct. 11, 2024. Accessed: Nov. 3, 2026. [Online]. Available: https://towardsdatascience.com/gaussian-naive-bayes-explained-a-visual-guide-with-code-examples-for-beginners-04949cef383c
+4. "Unfolding Naive Bayes from scratch: Part 2," _Data Science Dojo_. Accessed: Nov. 3, 2026. [Online]. Available: https://datasciencedojo.com/blog/naive-bayes-from-scratch-part-2/
+5. F. Lee, "What is logistic regression?," _IBM_, May 14, 2025. Accessed: Nov. 10, 2026. [Online]. Available: https://www.ibm.com/think/topics/logistic-regression
+6. "Logistic regression in machine learning," _GeeksforGeeks_, Jun. 1, 2026. Accessed: Nov. 10, 2026. [Online]. Available: https://www.geeksforgeeks.org/machine-learning/understanding-logistic-regression/
+7. D. M. W. Powers, "Evaluation: From precision, recall and F-measure to ROC, informedness, markedness and correlation," _J. Mach. Learn. Technol._, vol. 2, no. 1, pp. 37–63, 2011. [Online]. Available: https://www.researchgate.net/publication/228529307
